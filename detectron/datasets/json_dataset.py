@@ -15,6 +15,7 @@
 
 """Representation of the standard COCO json dataset format.
 
+强烈建议将数据集转换为coco json格式，而不是构建新的数据格式
 When working with a new dataset, we strongly suggest to convert the dataset into
 the COCO json format and use the existing code; it is not recommended to write
 code to support new dataset formats.
