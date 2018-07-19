@@ -72,53 +72,65 @@ cfg = __C
 __C.TRAIN = AttrDict()
 
 # Initialize network with weights from this .pkl file
+# 预训练权重
 __C.TRAIN.WEIGHTS = b''
 
 # Datasets to train on
 # Available dataset list: detectron.datasets.dataset_catalog.datasets()
 # If multiple datasets are listed, the model is trained on their union
+# 训练集
 __C.TRAIN.DATASETS = ()
 
 # Scales to use during training
 # Each scale is the pixel size of an image's shortest side
 # If multiple scales are listed, then one is selected uniformly at random for
 # each training image (i.e., scale jitter data augmentation)
+# 数据增强，图片最短边的尺度
 __C.TRAIN.SCALES = (600, )
 
 # Max pixel size of the longest side of a scaled input image
+# 数据增强后图片的长边的最大值
 __C.TRAIN.MAX_SIZE = 1000
 
 # Images *per GPU* in the training minibatch
 # Total images per minibatch = TRAIN.IMS_PER_BATCH * NUM_GPUS
+# 每块GPU上一次训练的图片个数
 __C.TRAIN.IMS_PER_BATCH = 2
 
 # RoI minibatch size *per image* (number of regions of interest [ROIs])
 # Total number of RoIs per training minibatch =
 #   TRAIN.BATCH_SIZE_PER_IM * TRAIN.IMS_PER_BATCH * NUM_GPUS
 # E.g., a common configuration is: 512 * 2 * 8 = 8192
+# 每个训练图片中ROI的个数
 __C.TRAIN.BATCH_SIZE_PER_IM = 64
 
 # Target fraction of RoI minibatch that is labeled foreground (i.e. class > 0)
+# ROI中目标的比例
 __C.TRAIN.FG_FRACTION = 0.25
 
 # Overlap threshold for an RoI to be considered foreground (if >= FG_THRESH)
+# 一个ROI和gt的IOU大于该值，则视为前景
 __C.TRAIN.FG_THRESH = 0.5
 
 # Overlap threshold for an RoI to be considered background (class = 0 if
 # overlap in [LO, HI))
+# 一个ROI和gt的IOU在该范围内，则视为背景
 __C.TRAIN.BG_THRESH_HI = 0.5
 __C.TRAIN.BG_THRESH_LO = 0.0
 
 # Use horizontally-flipped images during training?
+# 数据增强(水平翻转)
 __C.TRAIN.USE_FLIPPED = True
 
 # Overlap required between an RoI and a ground-truth box in order for that
 # (RoI, gt box) pair to be used as a bounding-box regression training example
+# ROI和gt_box的IOU大于该值，则作为一个包围盒回归的训练样本
 __C.TRAIN.BBOX_THRESH = 0.5
 
 # Snapshot (model checkpoint) period
 # Divide by NUM_GPUS to determine actual period (e.g., 20000/8 => 2500 iters)
 # to allow for linear training schedule scaling
+# 模型的保存频率
 __C.TRAIN.SNAPSHOT_ITERS = 20000
 
 # Train using these proposals
@@ -126,17 +138,21 @@ __C.TRAIN.SNAPSHOT_ITERS = 20000
 # applied)
 # Proposal files must be in correspondence with the datasets listed in
 # TRAIN.DATASETS
+# 候选区域文件
 __C.TRAIN.PROPOSAL_FILES = ()
 
 # Make minibatches from images that have similar aspect ratios (i.e. both
 # tall and thin or both short and wide)
 # This feature is critical for saving memory (and makes training slightly
 # faster)
+# 将形状相似的图片放入一个batch进行训练，来节约内存，加快训练速度
 __C.TRAIN.ASPECT_GROUPING = True
 
 # ---------------------------------------------------------------------------- #
 # RPN training options
 # ---------------------------------------------------------------------------- #
+
+# TODO(zzdxfei) work here
 
 # Minimum overlap required between an anchor and ground-truth box for the
 # (anchor, gt box) pair to be a positive example (IOU >= thresh ==> positive RPN
