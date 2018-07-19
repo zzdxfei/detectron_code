@@ -107,8 +107,11 @@ def main():
     # non-deterministic cudnn functions).
     np.random.seed(cfg.RNG_SEED)
     # Execute the training run
+    # 执行训练
     checkpoints = detectron.utils.train.train_model()
     # Test the trained model
+
+    # 执行测试
     if not args.skip_test:
         test_model(checkpoints['final'], args.multi_gpu_testing, args.opts)
 
