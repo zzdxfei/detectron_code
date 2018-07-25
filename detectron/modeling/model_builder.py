@@ -128,6 +128,8 @@ def get_func(func_name):
     """Helper to return a function object by name. func_name must identify a
     function in this module or the path to a function relative to the base
     'modeling' module.
+
+    通过名字返回一个函数对象，该函数要不在本模块，要不在detectron.modeling
     """
     if func_name == '':
         return None
@@ -144,6 +146,7 @@ def get_func(func_name):
         if len(parts) == 1:
             return globals()[parts[0]]
         # Otherwise, assume we're referencing a module under modeling
+        # 模型路径
         module_name = 'detectron.modeling.' + '.'.join(parts[:-1])
         module = importlib.import_module(module_name)
         return getattr(module, parts[-1])
@@ -163,9 +166,13 @@ def build_generic_detection_model(
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
         with name and device scoping to create a data parallel model.
+
+        在一个gpu上创建模型
         """
         # Add the conv body (called "backbone architecture" in papers)
         # E.g., ResNet-50, ResNet-50-FPN, ResNeXt-101-FPN, etc.
+        # 添加骨干网络 如ResNet.add_ResNet50_conv4_body
+
         blob_conv, dim_conv, spatial_scale_conv = add_conv_body_func(model)
         if freeze_conv_body:
             for b in c2_utils.BlobReferenceList(blob_conv):

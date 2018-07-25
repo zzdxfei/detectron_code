@@ -56,7 +56,10 @@ def train_model():
         return checkpoints
 
     setup_model_for_training(model, weights_file, output_dir)
+
+    # 记录模型的训练信息
     training_stats = TrainingStats(model)
+
     CHECKPOINT_PERIOD = int(cfg.TRAIN.SNAPSHOT_ITERS / cfg.NUM_GPUS)
 
     for cur_iter in range(start_iter, cfg.SOLVER.MAX_ITER):
@@ -100,8 +103,11 @@ def create_model():
     logger = logging.getLogger(__name__)
     start_iter = 0
     checkpoints = {}
+    # 模型输出目录
     output_dir = get_output_dir(cfg.TRAIN.DATASETS, training=True)
     weights_file = cfg.TRAIN.WEIGHTS
+
+    # 自动断点恢复
     if cfg.TRAIN.AUTO_RESUME:
         # Check for the final model (indicates training already finished)
         final_path = os.path.join(output_dir, 'model_final.pkl')
@@ -113,6 +119,7 @@ def create_model():
         files = os.listdir(output_dir)
         for f in files:
             iter_string = re.findall(r'(?<=model_iter)\d+(?=\.pkl)', f)
+            # 选择最后保存的模型
             if len(iter_string) > 0:
                 checkpoint_iter = int(iter_string[0])
                 if checkpoint_iter > start_iter:
@@ -129,10 +136,14 @@ def create_model():
             )
 
     logger.info('Building model: {}'.format(cfg.MODEL.TYPE))
+
+    # 构建一个特定类型的模型
     model = model_builder.create(cfg.MODEL.TYPE, train=True)
+
     if cfg.MEMONGER:
         optimize_memory(model)
     # Performs random weight initialization as defined by the model
+    # 初始权重
     workspace.RunNetOnce(model.param_init_net)
     return model, weights_file, start_iter, checkpoints, output_dir
 
@@ -154,6 +165,7 @@ def optimize_memory(model):
 def setup_model_for_training(model, weights_file, output_dir):
     """Loaded saved weights and create the network in the C2 workspace."""
     logger = logging.getLogger(__name__)
+    # 添加网络输入
     add_model_training_inputs(model)
 
     if weights_file:

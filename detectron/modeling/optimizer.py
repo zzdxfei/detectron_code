@@ -39,12 +39,15 @@ def build_data_parallel_model(model, single_gpu_build_func):
     elif model.train:
         all_loss_gradients = _build_forward_graph(model, single_gpu_build_func)
         # Add backward pass on all GPUs
+        # 添加反向传播操作
         model.AddGradientOperators(all_loss_gradients)
         if cfg.NUM_GPUS > 1:
             _add_allreduce_graph(model)
         for gpu_id in range(cfg.NUM_GPUS):
             # After allreduce, all GPUs perform SGD updates on their identical
             # params and gradients in parallel
+
+            # 添加参数更新操作
             with c2_utils.NamedCudaScope(gpu_id):
                 add_single_gpu_param_update_ops(model, gpu_id)
     else:
