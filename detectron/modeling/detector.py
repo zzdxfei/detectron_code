@@ -107,6 +107,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
     def GenerateProposals(self, blobs_in, blobs_out, anchors, spatial_scale):
         """Op for generating RPN porposals.
 
+        获得区域候选，区域候选相对于网络输入的大小
+
         blobs_in:
           - 'rpn_cls_probs': 4D tensor of shape (N, A, H, W), where N is the
             number of minibatch images, A is the number of anchors per
@@ -170,10 +172,14 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         return blobs_out
 
     def CollectAndDistributeFpnRpnProposals(self):
+        # TODO(zzdxfei) work here
         """Merge RPN proposals generated at multiple FPN levels and then
         distribute those proposals to their appropriate FPN levels. An anchor
         at one FPN level may predict an RoI that will map to another level,
         hence the need to redistribute the proposals.
+
+        从fpn的不同层合并proposals，然后将其分配到合适的FPN层。一个anchor预测的
+        RoI可能会映射到另外的FPN层，所以需要重新分配。
 
         This function assumes standard blob names for input and output blobs.
 
@@ -247,6 +253,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
     ):
         """Add the specified RoI pooling method. The sampling_ratio argument
         is supported for some, but not all, RoI transform methods.
+
+        提取proposal对应的特征图
 
         RoIFeatureTransform abstracts away:
           - Use of FPN or not

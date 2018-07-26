@@ -120,22 +120,29 @@ def add_fpn(model, fpn_level_info):
     # backbone (usually "conv5"). First we build down, recursively constructing
     # lower/finer resolution FPN levels. Then we build up, constructing levels
     # that are even higher/coarser than the starting level.
+    # 256
     fpn_dim = cfg.FPN.DIM
+    # 2, 6
     min_level, max_level = get_min_max_levels()
     # Count the number of backbone stages that we will generate FPN levels for
     # starting from the coarest backbone stage (usually the "conv5"-like level)
     # E.g., if the backbone level info defines stages 4 stages: "conv5",
     # "conv4", ... "conv2" and min_level=2, then we end up with 4 - (2 - 2) = 4
     # backbone stages to add FPN to.
+    # 4
     num_backbone_stages = (
         len(fpn_level_info.blobs) - (min_level - LOWEST_BACKBONE_LVL)
     )
 
     lateral_input_blobs = fpn_level_info.blobs[:num_backbone_stages]
+
+    # 输出的blobReference名字
     output_blobs = [
         'fpn_inner_{}'.format(s)
         for s in fpn_level_info.blobs[:num_backbone_stages]
     ]
+
+    # (2048, 1024, 512, 256)
     fpn_dim_lateral = fpn_level_info.dims
     xavier_fill = ('XavierFill', {})
 
@@ -156,6 +163,7 @@ def add_fpn(model, fpn_level_info):
         )
         output_blobs[0] = c  # rename it
     else:
+        # 最深层的fpn层
         model.Conv(
             lateral_input_blobs[0],
             output_blobs[0],
@@ -173,6 +181,7 @@ def add_fpn(model, fpn_level_info):
     #
 
     # For other levels add top-down and lateral connections
+    # 从深到浅构建fpn，上采样，相加
     for i in range(num_backbone_stages - 1):
         add_topdown_lateral_module(
             model,
@@ -184,6 +193,7 @@ def add_fpn(model, fpn_level_info):
         )
 
     # Post-hoc scale-specific 3x3 convs
+    # 添加一个3x3的卷积
     blobs_fpn = []
     spatial_scales = []
     for i in range(num_backbone_stages):
@@ -221,6 +231,7 @@ def add_fpn(model, fpn_level_info):
     #
 
     # Check if we need the P6 feature map
+    # 对最深的一层进行下采样，获得更小的一层
     if not cfg.FPN.EXTRA_CONV_LEVELS and max_level == HIGHEST_BACKBONE_LVL + 1:
         # Original FPN P6 level implementation from our CVPR'17 FPN paper
         P6_blob_in = blobs_fpn[0]
@@ -231,6 +242,7 @@ def add_fpn(model, fpn_level_info):
         spatial_scales.insert(0, spatial_scales[0] * 0.5)
 
     # Coarser FPN levels introduced for RetinaNet
+    # 用于RetinaNet, faster rcnn with fpn不执行
     if cfg.FPN.EXTRA_CONV_LEVELS and max_level > HIGHEST_BACKBONE_LVL:
         fpn_blob = fpn_level_info.blobs[0]
         dim_in = fpn_level_info.dims[0]
@@ -253,6 +265,20 @@ def add_fpn(model, fpn_level_info):
             blobs_fpn.insert(0, fpn_blob)
             spatial_scales.insert(0, spatial_scales[0] * 0.5)
 
+    """
+    blobs_fpn:
+        [BlobReference("gpu_0/fpn_res5_2_sum_subsampled_2x"), 
+         BlobReference("gpu_0/fpn_res5_2_sum"), 
+         BlobReference("gpu_0/fpn_res4_22_sum"), 
+         BlobReference("gpu_0/fpn_res3_3_sum"), 
+         BlobReference("gpu_0/fpn_res2_2_sum")]
+
+    fpn_dim:
+        256
+
+    spatial_scales:
+        [0.015625, 0.03125, 0.0625, 0.125, 0.25]
+    """
     return blobs_fpn, fpn_dim, spatial_scales
 
 
@@ -320,19 +346,23 @@ def get_min_max_levels():
 # RPN with an FPN backbone
 # ---------------------------------------------------------------------------- #
 
+# 对fpn添加输出
 def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
     """Add RPN on FPN specific outputs."""
     num_anchors = len(cfg.FPN.RPN_ASPECT_RATIOS)
     dim_out = dim_in
 
+    # 6 2, 一共5层
     k_max = cfg.FPN.RPN_MAX_LEVEL  # coarsest level of pyramid
     k_min = cfg.FPN.RPN_MIN_LEVEL  # finest level of pyramid
     assert len(blobs_in) == k_max - k_min + 1
+
     for lvl in range(k_min, k_max + 1):
         bl_in = blobs_in[k_max - lvl]  # blobs_in is in reversed order
         sc = spatial_scales[k_max - lvl]  # in reversed order
         slvl = str(lvl)
 
+        # fpn的第一层构建，后面的层共享
         if lvl == k_min:
             # Create conv ops with randomly initialized weights and
             # zeroed biases for the first FPN level; these will be shared by
@@ -350,7 +380,9 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
                 bias_init=const_fill(0.0)
             )
             model.Relu(conv_rpn_fpn, conv_rpn_fpn)
+
             # Proposal classification scores
+            # 每个anchor包含目标的概率
             rpn_cls_logits_fpn = model.Conv(
                 conv_rpn_fpn,
                 'rpn_cls_logits_fpn' + slvl,
@@ -363,6 +395,7 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
                 bias_init=const_fill(0.0)
             )
             # Proposal bbox regression deltas
+            # 每个anchor的回归量
             rpn_bbox_pred_fpn = model.Conv(
                 conv_rpn_fpn,
                 'rpn_bbox_pred_fpn' + slvl,
@@ -421,14 +454,19 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
             #  OR
             #  2) training for Faster R-CNN
             # Otherwise (== training for RPN only), proposals are not needed
+            # 在进行训练的时候，需要选择区域候选
             lvl_anchors = generate_anchors(
                 stride=2.**lvl,
                 sizes=(cfg.FPN.RPN_ANCHOR_START_SIZE * 2.**(lvl - k_min), ),
                 aspect_ratios=cfg.FPN.RPN_ASPECT_RATIOS
             )
+
+            # slvl是fpn中的层数[2, ..., 6]
+            # 添加Sigmoid
             rpn_cls_probs_fpn = model.net.Sigmoid(
                 rpn_cls_logits_fpn, 'rpn_cls_probs_fpn' + slvl
             )
+
             model.GenerateProposals(
                 [rpn_cls_probs_fpn, rpn_bbox_pred_fpn, 'im_info'],
                 ['rpn_rois_fpn' + slvl, 'rpn_roi_probs_fpn' + slvl],
@@ -439,6 +477,7 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
 
 def add_fpn_rpn_losses(model):
     """Add RPN on FPN specific losses."""
+    # 添加损失
     loss_gradients = {}
     for lvl in range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1):
         slvl = str(lvl)
@@ -456,6 +495,7 @@ def add_fpn_rpn_losses(model):
                 ],
                 'rpn_bbox_' + key + '_fpn' + slvl
             )
+        # 分类损失
         loss_rpn_cls_fpn = model.net.SigmoidCrossEntropyLoss(
             ['rpn_cls_logits_fpn' + slvl, 'rpn_labels_int32_fpn' + slvl],
             'loss_rpn_cls_fpn' + slvl,
@@ -468,6 +508,7 @@ def add_fpn_rpn_losses(model):
         # Normalization by (1) RPN_BATCH_SIZE_PER_IM and (2) IMS_PER_BATCH is
         # handled by (1) setting bbox outside weights and (2) SmoothL1Loss
         # normalizes by IMS_PER_BATCH
+        # 包围盒回归损失
         loss_rpn_bbox_fpn = model.net.SmoothL1Loss(
             [
                 'rpn_bbox_pred_fpn' + slvl, 'rpn_bbox_targets_fpn' + slvl,
@@ -478,6 +519,8 @@ def add_fpn_rpn_losses(model):
             beta=1. / 9.,
             scale=model.GetLossScale(),
         )
+
+        # 梯度更新
         loss_gradients.update(
             blob_utils.
             get_loss_gradients(model, [loss_rpn_cls_fpn, loss_rpn_bbox_fpn])

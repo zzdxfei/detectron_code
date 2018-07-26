@@ -95,9 +95,14 @@ def add_ResNet_convX_body(model, block_counts, freeze_at=2):
     assert freeze_at in [0, 2, 3, 4, 5]
 
     # add the stem (by default, conv1 and pool1 with bn; can support gn)
+    # 默认调用basic_bn_stem, 添加resnet开始的几层
+    # 返回p为Blobreference，dim_in = 64
+    # res1
     p, dim_in = globals()[cfg.RESNETS.STEM_FUNC](model, 'data')
 
+    # 1 * 64
     dim_bottleneck = cfg.RESNETS.NUM_GROUPS * cfg.RESNETS.WIDTH_PER_GROUP
+
     (n1, n2, n3) = block_counts[:3]
     s, dim_in = add_stage(model, 'res2', p, n1, dim_in, 256, dim_bottleneck, 1)
     if freeze_at == 2:
@@ -112,7 +117,9 @@ def add_ResNet_convX_body(model, block_counts, freeze_at=2):
     )
     if freeze_at == 4:
         model.StopGradient(s, s)
+
     if len(block_counts) == 4:
+        # 添加最后一个块
         n4 = block_counts[3]
         s, dim_in = add_stage(
             model, 'res5', s, n4, dim_in, 2048, dim_bottleneck * 8,
@@ -120,8 +127,10 @@ def add_ResNet_convX_body(model, block_counts, freeze_at=2):
         )
         if freeze_at == 5:
             model.StopGradient(s, s)
+        # dim_in = 2018
         return s, dim_in, 1. / 32. * cfg.RESNETS.RES5_DILATION
     else:
+        # 返回Blobreference，??
         return s, dim_in, 1. / 16.
 
 

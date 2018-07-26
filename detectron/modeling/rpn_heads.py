@@ -37,6 +37,7 @@ def add_generic_rpn_outputs(model, blob_in, dim_in, spatial_scale_in):
     loss_gradients = None
     if cfg.FPN.FPN_ON:
         # Delegate to the FPN module
+        # 添加proposals层，输出为(bacth_index, x1, y1, x2, y2)
         FPN.add_fpn_rpn_outputs(model, blob_in, dim_in, spatial_scale_in)
         if cfg.MODEL.FASTER_RCNN:
             # CollectAndDistributeFpnRpnProposals also labels proposals when in

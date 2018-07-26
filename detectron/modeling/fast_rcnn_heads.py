@@ -99,8 +99,11 @@ def add_fast_rcnn_losses(model):
 
 def add_roi_2mlp_head(model, blob_in, dim_in, spatial_scale):
     """Add a ReLU MLP with two hidden layers."""
+    # 1024
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    # 7
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+
     roi_feat = model.RoIFeatureTransform(
         blob_in,
         'roi_feat',

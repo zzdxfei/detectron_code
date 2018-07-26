@@ -172,8 +172,9 @@ def build_generic_detection_model(
         # Add the conv body (called "backbone architecture" in papers)
         # E.g., ResNet-50, ResNet-50-FPN, ResNeXt-101-FPN, etc.
         # 添加骨干网络 如ResNet.add_ResNet50_conv4_body
-
         blob_conv, dim_conv, spatial_scale_conv = add_conv_body_func(model)
+
+        # 对每一个fpn层停止反向传播
         if freeze_conv_body:
             for b in c2_utils.BlobReferenceList(blob_conv):
                 model.StopGradient(b, b)
@@ -192,6 +193,7 @@ def build_generic_detection_model(
 
         if cfg.RPN.RPN_ON:
             # Add the RPN head
+            # 添加loss和grad
             head_loss_gradients['rpn'] = rpn_heads.add_generic_rpn_outputs(
                 model, blob_conv, dim_conv, spatial_scale_conv
             )
@@ -205,6 +207,7 @@ def build_generic_detection_model(
 
         if not cfg.MODEL.RPN_ONLY:
             # Add the Fast R-CNN head
+            # 添加class和box regress损失
             head_loss_gradients['box'] = _add_fast_rcnn_head(
                 model, add_roi_box_head_func, blob_conv, dim_conv,
                 spatial_scale_conv
@@ -260,8 +263,11 @@ def _add_fast_rcnn_head(
     blob_frcn, dim_frcn = add_roi_box_head_func(
         model, blob_in, dim_in, spatial_scale_in
     )
+
+    # 添加输出
     fast_rcnn_heads.add_fast_rcnn_outputs(model, blob_frcn, dim_frcn)
     if model.train:
+        # 添加损失，梯度以及度量方法
         loss_gradients = fast_rcnn_heads.add_fast_rcnn_losses(model)
     else:
         loss_gradients = None
