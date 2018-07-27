@@ -97,11 +97,16 @@ class JsonDataset(object):
         assert gt is True or crowd_filter_thresh == 0, \
             'Crowd filter threshold must be 0 if ground-truth annotations ' \
             'are not included.'
+        # 获得所有图片的id
         image_ids = self.COCO.getImgIds()
         image_ids.sort()
+        # 列表，每一项为{u'file_name': u'107428.jpg', u'width': 2456, u'id': 107428, u'height': 2058}
         roidb = copy.deepcopy(self.COCO.loadImgs(image_ids))
+
+        # 对于每项，添加训练需要的信息
         for entry in roidb:
             self._prep_roidb_entry(entry)
+
         if gt:
             # Include ground-truth object annotations
             self.debug_timer.tic()
@@ -111,6 +116,7 @@ class JsonDataset(object):
                 '_add_gt_annotations took {:.3f}s'.
                 format(self.debug_timer.toc(average=False))
             )
+
         if proposal_file is not None:
             # Include proposals from a file
             self.debug_timer.tic()
@@ -122,11 +128,14 @@ class JsonDataset(object):
                 '_add_proposals_from_file took {:.3f}s'.
                 format(self.debug_timer.toc(average=False))
             )
+        # 对每个entry添加max_classes, max_overlaps
         _add_class_assignments(roidb)
         return roidb
 
     def _prep_roidb_entry(self, entry):
-        """Adds empty metadata fields to an roidb entry."""
+        """Adds empty metadata fields to an roidb entry.
+        对每一个entry添加信息或者占位
+        """
         # Reference back to the parent dataset
         entry['dataset'] = self
         # Make file_name an abs path
@@ -137,6 +146,7 @@ class JsonDataset(object):
         entry['image'] = im_path
         entry['flipped'] = False
         entry['has_visible_keypoints'] = False
+
         # Empty placeholders
         entry['boxes'] = np.empty((0, 4), dtype=np.float32)
         entry['segms'] = []
@@ -159,14 +169,20 @@ class JsonDataset(object):
                 del entry[k]
 
     def _add_gt_annotations(self, entry):
-        """Add ground truth annotation metadata to an roidb entry."""
+        """Add ground truth annotation metadata to an roidb entry.
+        对每个训练样本添加ground truth信息
+        """
+        # 获取对应的标注信息
         ann_ids = self.COCO.getAnnIds(imgIds=entry['id'], iscrowd=None)
         objs = self.COCO.loadAnns(ann_ids)
         # Sanitize bboxes -- some are invalid
+        # 存储有效标注
         valid_objs = []
         valid_segms = []
         width = entry['width']
         height = entry['height']
+
+        # 对每个标注对象解析
         for obj in objs:
             # crowd regions are RLE encoded and stored as dicts
             if isinstance(obj['segmentation'], list):
@@ -179,6 +195,7 @@ class JsonDataset(object):
             if 'ignore' in obj and obj['ignore'] == 1:
                 continue
             # Convert form (x1, y1, w, h) to (x1, y1, x2, y2)
+            # interesting
             x1, y1, x2, y2 = box_utils.xywh_to_xyxy(obj['bbox'])
             x1, y1, x2, y2 = box_utils.clip_xyxy_to_image(
                 x1, y1, x2, y2, height, width
@@ -188,6 +205,8 @@ class JsonDataset(object):
                 obj['clean_bbox'] = [x1, y1, x2, y2]
                 valid_objs.append(obj)
                 valid_segms.append(obj['segmentation'])
+
+        # 分配存储空间
         num_valid_objs = len(valid_objs)
 
         boxes = np.zeros((num_valid_objs, 4), dtype=entry['boxes'].dtype)
@@ -196,17 +215,21 @@ class JsonDataset(object):
             (num_valid_objs, self.num_classes),
             dtype=entry['gt_overlaps'].dtype
         )
+
         seg_areas = np.zeros((num_valid_objs), dtype=entry['seg_areas'].dtype)
         is_crowd = np.zeros((num_valid_objs), dtype=entry['is_crowd'].dtype)
+
         box_to_gt_ind_map = np.zeros(
             (num_valid_objs), dtype=entry['box_to_gt_ind_map'].dtype
         )
+
         if self.keypoints is not None:
             gt_keypoints = np.zeros(
                 (num_valid_objs, 3, self.num_keypoints),
                 dtype=entry['gt_keypoints'].dtype
             )
 
+        # 计算，赋值
         im_has_visible_keypoints = False
         for ix, obj in enumerate(valid_objs):
             cls = self.json_category_id_to_contiguous_id[obj['category_id']]

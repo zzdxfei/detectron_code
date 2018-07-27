@@ -47,6 +47,7 @@ def combined_roidb_for_training(dataset_names, proposal_files):
         )
         if cfg.TRAIN.USE_FLIPPED:
             logger.info('Appending horizontally-flipped training examples...')
+            # 添加水平翻转
             extend_with_flipped_entries(roidb, ds)
         logger.info('Loaded dataset: {:s}'.format(ds.name))
         return roidb
@@ -62,7 +63,11 @@ def combined_roidb_for_training(dataset_names, proposal_files):
     roidb = roidbs[0]
     for r in roidbs[1:]:
         roidb.extend(r)
+
+    # 过滤无用的训练样本
     roidb = filter_for_training(roidb)
+
+    # TODO(zzdxfei) work here
 
     logger.info('Computing bounding-box regression targets...')
     add_bbox_regression_targets(roidb)
