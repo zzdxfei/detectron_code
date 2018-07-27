@@ -170,16 +170,21 @@ def setup_model_for_training(model, weights_file, output_dir):
 
     if weights_file:
         # Override random weight initialization with weights from a saved model
+        # 加载预训练模型参数
         nu.initialize_gpu_from_weights_file(model, weights_file, gpu_id=0)
     # Even if we're randomly initializing we still need to synchronize
     # parameters across GPUs
+    
     nu.broadcast_parameters(model)
+
+    # 创建网络
     workspace.CreateNet(model.net)
 
     logger.info('Outputs saved to: {:s}'.format(os.path.abspath(output_dir)))
     dump_proto_files(model, output_dir)
 
     # Start loading mini-batches and enqueuing blobs
+    # 开始加载数据
     model.roi_data_loader.register_sigint_handler()
     model.roi_data_loader.start(prefill=True)
     return output_dir
@@ -189,6 +194,8 @@ def add_model_training_inputs(model):
     """Load the training dataset and attach the training inputs to the model."""
     logger = logging.getLogger(__name__)
     logger.info('Loading dataset: {}'.format(cfg.TRAIN.DATASETS))
+
+    # 构造roidb
     roidb = combined_roidb_for_training(
         cfg.TRAIN.DATASETS, cfg.TRAIN.PROPOSAL_FILES
     )

@@ -381,6 +381,8 @@ def build_generic_retinanet_model(
 def add_training_inputs(model, roidb=None):
     """Create network input ops and blobs used for training. To be called
     *after* model_builder.create().
+
+    添加input op
     """
     # Implementation notes:
     #   Typically, one would create the input ops and then the rest of the net.
@@ -394,6 +396,7 @@ def add_training_inputs(model, roidb=None):
     assert model.train, 'Training inputs can only be added to a trainable model'
     if roidb is not None:
         # To make debugging easier you can set cfg.DATA_LOADER.NUM_THREADS = 1
+        # roidb数据加载器
         model.roi_data_loader = RoIDataLoader(
             roidb,
             num_loaders=cfg.DATA_LOADER.NUM_THREADS,
@@ -401,7 +404,11 @@ def add_training_inputs(model, roidb=None):
             blobs_queue_capacity=cfg.DATA_LOADER.BLOBS_QUEUE_CAPACITY
         )
     orig_num_op = len(model.net._net.op)
+    
+    # 网络中输入的blob的名字
     blob_names = roi_data_minibatch.get_minibatch_blob_names(is_training=True)
+
+    # 对每个gpu创建input blob
     for gpu_id in range(cfg.NUM_GPUS):
         with c2_utils.NamedCudaScope(gpu_id):
             for blob_name in blob_names:
