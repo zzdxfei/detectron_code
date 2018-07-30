@@ -120,7 +120,7 @@ def add_fpn(model, fpn_level_info):
     # backbone (usually "conv5"). First we build down, recursively constructing
     # lower/finer resolution FPN levels. Then we build up, constructing levels
     # that are even higher/coarser than the starting level.
-    # 256
+    # 每个fpn层的输出，特征图为256维
     fpn_dim = cfg.FPN.DIM
     # 2, 6
     min_level, max_level = get_min_max_levels()
@@ -193,7 +193,7 @@ def add_fpn(model, fpn_level_info):
         )
 
     # Post-hoc scale-specific 3x3 convs
-    # 添加一个3x3的卷积
+    # 添加一个3x3的卷积，输入维度和输出维度相同
     blobs_fpn = []
     spatial_scales = []
     for i in range(num_backbone_stages):
@@ -231,7 +231,7 @@ def add_fpn(model, fpn_level_info):
     #
 
     # Check if we need the P6 feature map
-    # 对最深的一层进行下采样，获得更小的一层
+    # 对fpn中最深的一层进行下采样，获得更小的一层
     if not cfg.FPN.EXTRA_CONV_LEVELS and max_level == HIGHEST_BACKBONE_LVL + 1:
         # Original FPN P6 level implementation from our CVPR'17 FPN paper
         P6_blob_in = blobs_fpn[0]
@@ -368,6 +368,7 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
             # zeroed biases for the first FPN level; these will be shared by
             # all other FPN levels
             # RPN hidden representation
+            # 首先接一个卷积层
             conv_rpn_fpn = model.Conv(
                 bl_in,
                 'conv_rpn_fpn' + slvl,
@@ -467,9 +468,11 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
                 rpn_cls_logits_fpn, 'rpn_cls_probs_fpn' + slvl
             )
 
+            # im_info (网络输入的高度， 网络输入的宽度，原始图片到网络输入的放缩比例)
+            # 获得(R, 5), 每个ROI是相对于网络输入尺寸的矩形
             model.GenerateProposals(
-                [rpn_cls_probs_fpn, rpn_bbox_pred_fpn, 'im_info'],
-                ['rpn_rois_fpn' + slvl, 'rpn_roi_probs_fpn' + slvl],
+                [rpn_cls_probs_fpn, rpn_bbox_pred_fpn, 'im_info'],  # 输入
+                ['rpn_rois_fpn' + slvl, 'rpn_roi_probs_fpn' + slvl],  # 输出
                 anchors=lvl_anchors,
                 spatial_scale=sc
             )
@@ -483,6 +486,7 @@ def add_fpn_rpn_losses(model):
         slvl = str(lvl)
         # Spatially narrow the full-sized RPN label arrays to match the feature map
         # shape
+        # TODO(zzdxfei) work here
         model.net.SpatialNarrowAs(
             ['rpn_labels_int32_wide_fpn' + slvl, 'rpn_cls_logits_fpn' + slvl],
             'rpn_labels_int32_fpn' + slvl
@@ -538,6 +542,7 @@ def map_rois_to_fpn_levels(rois, k_min, k_max):
     on the heuristic in the FPN paper.
     """
     # Compute level ids
+    # TODO(zzdxfei) work here
     s = np.sqrt(box_utils.boxes_area(rois))
     s0 = cfg.FPN.ROI_CANONICAL_SCALE  # default: 224
     lvl0 = cfg.FPN.ROI_CANONICAL_LEVEL  # default: 4

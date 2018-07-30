@@ -33,11 +33,13 @@ import detectron.utils.blob as blob_utils
 def add_generic_rpn_outputs(model, blob_in, dim_in, spatial_scale_in):
     """Add RPN outputs (objectness classification and bounding box regression)
     to an RPN model. Abstracts away the use of FPN.
+    目标分类，包围盒回归
     """
     loss_gradients = None
     if cfg.FPN.FPN_ON:
         # Delegate to the FPN module
         # 添加proposals层，输出为(bacth_index, x1, y1, x2, y2)
+        # 对fpn中的每一层，获取ROIs
         FPN.add_fpn_rpn_outputs(model, blob_in, dim_in, spatial_scale_in)
         if cfg.MODEL.FASTER_RCNN:
             # CollectAndDistributeFpnRpnProposals also labels proposals when in

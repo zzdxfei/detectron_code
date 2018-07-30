@@ -41,6 +41,7 @@ class CollectAndDistributeFpnRpnProposalsOp(object):
         #  rpn_roi_probs_fpn2, ..., rpn_roi_probs_fpn6]
         # If training with Faster R-CNN, then inputs will additionally include
         #  + [roidb, im_info]
+        # 将所有的rois收集起来，并取得分最高的一部分
         rois = collect(inputs, self._train)
         if self._train:
             # During training we reuse the data loader code. We populate roidb
@@ -65,6 +66,7 @@ class CollectAndDistributeFpnRpnProposalsOp(object):
         else:
             # For inference we have a special code path that avoids some data
             # loader overhead
+            # 根据面积，将roi分配给最合适的fpn层
             distribute(rois, None, outputs, self._train)
 
 
