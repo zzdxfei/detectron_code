@@ -48,6 +48,7 @@ def add_mask_rcnn_outputs(model, blob_in, dim):
     """Add Mask R-CNN specific outputs: either mask logits or probs."""
     num_cls = cfg.MODEL.NUM_CLASSES if cfg.MRCNN.CLS_SPECIFIC_MASK else 1
 
+    # 默认为False
     if cfg.MRCNN.USE_FC_OUTPUT:
         # Predict masks with a fully connected layer (ignore 'fcn' in the blob
         # name)
@@ -68,6 +69,7 @@ def add_mask_rcnn_outputs(model, blob_in, dim):
             cfg.MRCNN.CONV_INIT
             if cfg.MRCNN.CLS_SPECIFIC_MASK else 'GaussianFill'
         )
+        # 输出的维数为分类数
         blob_out = model.Conv(
             blob_in,
             'mask_fcn_logits',
@@ -87,6 +89,7 @@ def add_mask_rcnn_outputs(model, blob_in, dim):
             )
 
     if not model.train:  # == if test
+        # 是还是不是的问题
         blob_out = model.net.Sigmoid(blob_out, 'mask_fcn_probs')
 
     return blob_out

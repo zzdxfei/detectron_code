@@ -215,6 +215,7 @@ def build_generic_detection_model(
 
         if cfg.MODEL.MASK_ON:
             # Add the mask head
+            # 添加mask头
             head_loss_gradients['mask'] = _add_roi_mask_head(
                 model, add_roi_mask_head_func, blob_conv, dim_conv,
                 spatial_scale_conv
