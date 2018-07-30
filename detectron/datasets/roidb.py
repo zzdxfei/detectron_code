@@ -67,9 +67,8 @@ def combined_roidb_for_training(dataset_names, proposal_files):
     # 过滤无用的训练样本
     roidb = filter_for_training(roidb)
 
-    # TODO(zzdxfei) work here
-
     logger.info('Computing bounding-box regression targets...')
+    # 添加包围盒回归目标
     add_bbox_regression_targets(roidb)
     logger.info('done')
 
