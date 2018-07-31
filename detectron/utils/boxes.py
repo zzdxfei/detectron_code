@@ -55,7 +55,9 @@ bbox_overlaps = cython_bbox.bbox_overlaps
 
 
 def boxes_area(boxes):
-    """Compute the area of an array of boxes."""
+    """Compute the area of an array of boxes.
+    计算包围盒的面积
+    """
     w = (boxes[:, 2] - boxes[:, 0] + 1)
     h = (boxes[:, 3] - boxes[:, 1] + 1)
     areas = w * h

@@ -30,7 +30,6 @@ import detectron.utils.boxes as box_utils
 class GenerateProposalsOp(object):
     """Output object detection proposals by applying estimated bounding-box
     transformations to a set of regular boxes (called "anchors").
-    # TODO(zzdxfei) work here
     """
 
     def __init__(self, anchors, spatial_scale, train):

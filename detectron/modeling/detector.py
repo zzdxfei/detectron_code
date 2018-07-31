@@ -172,7 +172,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
         return blobs_out
 
     def CollectAndDistributeFpnRpnProposals(self):
-        # TODO(zzdxfei) work here
         """Merge RPN proposals generated at multiple FPN levels and then
         distribute those proposals to their appropriate FPN levels. An anchor
         at one FPN level may predict an RoI that will map to another level,
@@ -220,6 +219,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
 
         blobs_in = rois_names + score_names
 
+        # 训练需要额外的输入
         if self.train:
             blobs_in += ['roidb', 'im_info']
         # 转化为BlobReference

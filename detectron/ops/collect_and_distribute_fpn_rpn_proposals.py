@@ -98,18 +98,22 @@ def distribute(rois, label_blobs, outputs, train):
     lvl_max = cfg.FPN.ROI_MAX_LEVEL
     lvls = fpn.map_rois_to_fpn_levels(rois[:, 1:5], lvl_min, lvl_max)
 
+    # output[0]存储所有的rois
     outputs[0].reshape(rois.shape)
     outputs[0].data[...] = rois
 
     # Create new roi blobs for each FPN level
     # (See: modeling.FPN.add_multilevel_roi_blobs which is similar but annoying
     # to generalize to support this particular case.)
+    # 对fpn的每一层创建新的rois
     rois_idx_order = np.empty((0, ))
     for output_idx, lvl in enumerate(range(lvl_min, lvl_max + 1)):
+        # 选取本层的roi索引
         idx_lvl = np.where(lvls == lvl)[0]
         blob_roi_level = rois[idx_lvl, :]
         outputs[output_idx + 1].reshape(blob_roi_level.shape)
         outputs[output_idx + 1].data[...] = blob_roi_level
         rois_idx_order = np.concatenate((rois_idx_order, idx_lvl))
+    # rois中每一项在重新分配到fpn后的连接数组中的位置
     rois_idx_restore = np.argsort(rois_idx_order)
     blob_utils.py_op_copy_blob(rois_idx_restore.astype(np.int32), outputs[-1])
