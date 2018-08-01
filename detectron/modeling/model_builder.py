@@ -172,6 +172,8 @@ def build_generic_detection_model(
         # Add the conv body (called "backbone architecture" in papers)
         # E.g., ResNet-50, ResNet-50-FPN, ResNeXt-101-FPN, etc.
         # 添加骨干网络 如ResNet.add_ResNet50_conv4_body
+        # 对于fpn faster rcnn 101
+        # [sum5_subsmapled, sum5, ..., sum2] 256 [1 / 64, ..., 1 / 4]
         blob_conv, dim_conv, spatial_scale_conv = add_conv_body_func(model)
 
         # 冻结conv body，对每一个fpn层停止反向传播

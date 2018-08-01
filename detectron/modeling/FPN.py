@@ -449,6 +449,7 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
                 bias='rpn_bbox_pred_fpn' + sk_min + '_b'
             )
 
+        # 为后面的目标分类和回归提供最好的训练样本
         if not model.train or cfg.MODEL.FASTER_RCNN:
             # Proposals are needed during:
             #  1) inference (== not model.train) for RPN only and Faster R-CNN
@@ -456,6 +457,7 @@ def add_fpn_rpn_outputs(model, blobs_in, dim_in, spatial_scales):
             #  2) training for Faster R-CNN
             # Otherwise (== training for RPN only), proposals are not needed
             # 在进行训练的时候，需要选择区域候选
+            # 获得本层使用的anchor
             lvl_anchors = generate_anchors(
                 stride=2.**lvl,
                 sizes=(cfg.FPN.RPN_ANCHOR_START_SIZE * 2.**(lvl - k_min), ),
@@ -499,6 +501,7 @@ def add_fpn_rpn_losses(model):
                 ],
                 'rpn_bbox_' + key + '_fpn' + slvl
             )
+
         # 分类损失
         loss_rpn_cls_fpn = model.net.SigmoidCrossEntropyLoss(
             ['rpn_cls_logits_fpn' + slvl, 'rpn_labels_int32_fpn' + slvl],

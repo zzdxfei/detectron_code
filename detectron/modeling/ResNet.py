@@ -130,7 +130,6 @@ def add_ResNet_convX_body(model, block_counts, freeze_at=2):
         # dim_in = 2018
         return s, dim_in, 1. / 32. * cfg.RESNETS.RES5_DILATION
     else:
-        # 返回Blobreference，??
         return s, dim_in, 1. / 16.
 
 

@@ -39,7 +39,8 @@ def add_generic_rpn_outputs(model, blob_in, dim_in, spatial_scale_in):
     if cfg.FPN.FPN_ON:
         # Delegate to the FPN module
         # 添加proposals层，输出为(bacth_index, x1, y1, x2, y2)
-        # 对fpn中的每一层，获取ROIs
+        # 1. 获得rpn的输出，MxNxAnchors, MxNx4Anchors;
+        # 2. 对fpn中的每一层，获取ROIs
         FPN.add_fpn_rpn_outputs(model, blob_in, dim_in, spatial_scale_in)
         if cfg.MODEL.FASTER_RCNN:
             # CollectAndDistributeFpnRpnProposals also labels proposals when in

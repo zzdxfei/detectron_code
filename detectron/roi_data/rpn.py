@@ -31,6 +31,7 @@ import detectron.utils.boxes as box_utils
 
 logger = logging.getLogger(__name__)
 
+# TODO(zzdxfei) work here  (how to build *wide)
 
 def get_rpn_blob_names(is_training=True):
     """Blob names used by RPN."""
