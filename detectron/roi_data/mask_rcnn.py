@@ -16,6 +16,7 @@
 """Construct minibatches for Mask R-CNN training. Handles the minibatch blobs
 that are specific to Mask R-CNN. Other blobs that are generic to RPN or
 Fast/er R-CNN are handled by their respecitive roi_data modules.
+构建用于Mask R-CNN训练的minibatches
 """
 
 from __future__ import absolute_import
@@ -38,6 +39,8 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
     """Add Mask R-CNN specific blobs to the input blob dictionary."""
     # Prepare the mask targets by associating one gt mask to each training roi
     # that has a fg (non-bg) class label.
+    # 默认为28，在fpn的收集与分配函数中调用到此处
+    # TODO(zzdxfei) work here
     M = cfg.MRCNN.RESOLUTION
     polys_gt_inds = np.where(
         (roidb['gt_classes'] > 0) & (roidb['is_crowd'] == 0)
