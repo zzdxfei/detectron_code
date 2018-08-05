@@ -55,18 +55,24 @@ def get_fast_rcnn_blob_names(is_training=True):
         # this binary vector sepcifies the subset of active targets
         blob_names += ['bbox_inside_weights']
         blob_names += ['bbox_outside_weights']
+
     if is_training and cfg.MODEL.MASK_ON:
         # 'mask_rois': RoIs sampled for training the mask prediction branch.
         # Shape is (#masks, 5) in format (batch_idx, x1, y1, x2, y2).
+        # 用于训练mask分支的rois
         blob_names += ['mask_rois']
         # 'roi_has_mask': binary labels for the RoIs specified in 'rois'
         # indicating if each RoI has a mask or not. Note that in some cases
         # a *bg* RoI will have an all -1 (ignore) mask associated with it in
         # the case that no fg RoIs can be sampled. Shape is (batchsize).
+        # 对应于rois，标记每个是否有mask
+        # !!! 如果没有一个fg rois，那么会选择一个bg roi，将它对应的mask赋值为-1,
+        # 表示忽略
         blob_names += ['roi_has_mask_int32']
         # 'masks_int32' holds binary masks for the RoIs specified in
         # 'mask_rois'. Shape is (#fg, M * M) where M is the ground truth
         # mask size.
+        # fg对应的mask标签
         blob_names += ['masks_int32']
     if is_training and cfg.MODEL.KEYPOINTS_ON:
         # 'keypoint_rois': RoIs sampled for training the keypoint prediction
@@ -132,6 +138,9 @@ def add_fast_rcnn_blobs(blobs, im_scales, roidb):
 def _sample_rois(roidb, im_scale, batch_idx):
     """Generate a random sample of RoIs comprising foreground and background
     examples.
+
+    获得fg和bg roi
+
     """
     rois_per_image = int(cfg.TRAIN.BATCH_SIZE_PER_IM)
     fg_rois_per_image = int(np.round(cfg.TRAIN.FG_FRACTION * rois_per_image))

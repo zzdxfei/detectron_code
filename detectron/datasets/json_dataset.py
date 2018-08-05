@@ -357,6 +357,7 @@ def add_proposals(roidb, rois, scales, crowd_thresh):
     box_list = []
     for i in range(len(roidb)):
         inv_im_scale = 1. / scales[i]
+        # 属于每个图片的roi的索引
         idx = np.where(rois[:, 0] == i)[0]
         box_list.append(rois[idx, 1:] * inv_im_scale)
     _merge_proposal_boxes_into_roidb(roidb, box_list)
@@ -371,10 +372,12 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
     for i, entry in enumerate(roidb):
         boxes = box_list[i]
         num_boxes = boxes.shape[0]
+        # (num boxes, num class + 1)
         gt_overlaps = np.zeros(
             (num_boxes, entry['gt_overlaps'].shape[1]),
             dtype=entry['gt_overlaps'].dtype
         )
+        # (num boxes,)
         box_to_gt_ind_map = -np.ones(
             (num_boxes), dtype=entry['box_to_gt_ind_map'].dtype
         )
@@ -386,12 +389,15 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
         if len(gt_inds) > 0:
             gt_boxes = entry['boxes'][gt_inds, :]
             gt_classes = entry['gt_classes'][gt_inds]
+
+            # 计算每个box和gt box的iou
             proposal_to_gt_overlaps = box_utils.bbox_overlaps(
                 boxes.astype(dtype=np.float32, copy=False),
                 gt_boxes.astype(dtype=np.float32, copy=False)
             )
             # Gt box that overlaps each input box the most
             # (ties are broken arbitrarily by class order)
+            # 计算每个box与哪个gt box的iou最大
             argmaxes = proposal_to_gt_overlaps.argmax(axis=1)
             # Amount of that overlap
             maxes = proposal_to_gt_overlaps.max(axis=1)
@@ -399,28 +405,41 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
             I = np.where(maxes > 0)[0]
             # Record max overlaps with the class of the appropriate gt box
             gt_overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
+
+            # box -> gt的索引
             box_to_gt_ind_map[I] = gt_inds[argmaxes[I]]
+        # 添加新的box
         entry['boxes'] = np.append(
             entry['boxes'],
             boxes.astype(entry['boxes'].dtype, copy=False),
             axis=0
         )
+
+        # 全部添加为0
         entry['gt_classes'] = np.append(
             entry['gt_classes'],
             np.zeros((num_boxes), dtype=entry['gt_classes'].dtype)
         )
+
+        # 全部添加为0
         entry['seg_areas'] = np.append(
             entry['seg_areas'],
             np.zeros((num_boxes), dtype=entry['seg_areas'].dtype)
         )
+
+        # 添加每个box和gt box的iou
         entry['gt_overlaps'] = np.append(
             entry['gt_overlaps'].toarray(), gt_overlaps, axis=0
         )
         entry['gt_overlaps'] = scipy.sparse.csr_matrix(entry['gt_overlaps'])
+
+        # 全部添加为0
         entry['is_crowd'] = np.append(
             entry['is_crowd'],
             np.zeros((num_boxes), dtype=entry['is_crowd'].dtype)
         )
+
+        # 添加每个box对应的gt box索引
         entry['box_to_gt_ind_map'] = np.append(
             entry['box_to_gt_ind_map'],
             box_to_gt_ind_map.astype(
@@ -459,10 +478,14 @@ def _add_class_assignments(roidb):
         max_overlaps = gt_overlaps.max(axis=1)
         # gt class that had the max overlap
         max_classes = gt_overlaps.argmax(axis=1)
+
+        # 添加每个包围盒的信息
         entry['max_classes'] = max_classes
         entry['max_overlaps'] = max_overlaps
+
         # sanity checks
         # if max overlap is 0, the class must be background (class 0)
+        # 隐式检查
         zero_inds = np.where(max_overlaps == 0)[0]
         assert all(max_classes[zero_inds] == 0)
         # if max overlap > 0, the class must be a fg class (not class 0)
