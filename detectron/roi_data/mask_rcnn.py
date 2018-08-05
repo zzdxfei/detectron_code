@@ -46,14 +46,21 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
         (roidb['gt_classes'] > 0) & (roidb['is_crowd'] == 0)
     )[0]
     polys_gt = [roidb['segms'][i] for i in polys_gt_inds]
+    # 包围多边形的矩形
     boxes_from_polys = segm_utils.polys_to_boxes(polys_gt)
+
+    # 每个ground truth对应的真实标签
     fg_inds = np.where(blobs['labels_int32'] > 0)[0]
+
+    # roi包含mask
     roi_has_mask = blobs['labels_int32'].copy()
     roi_has_mask[roi_has_mask > 0] = 1
 
     if fg_inds.shape[0] > 0:
         # Class labels for the foreground rois
+        # mask对应的标签
         mask_class_labels = blobs['labels_int32'][fg_inds]
+        # mask
         masks = blob_utils.zeros((fg_inds.shape[0], M**2), int32=True)
 
         # Find overlap between all foreground rois and the bounding boxes
@@ -65,6 +72,7 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
         )
         # Map from each fg rois to the index of the mask with highest overlap
         # (measured by bbox overlap)
+        # 找到每个roi对应的mask索引
         fg_polys_inds = np.argmax(overlaps_bbfg_bbpolys, axis=1)
 
         # add fg targets
@@ -75,9 +83,11 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
             # Rasterize the portion of the polygon mask within the given fg roi
             # to an M x M binary image
             mask = segm_utils.polys_to_mask_wrt_box(poly_gt, roi_fg, M)
+            # 二值化
             mask = np.array(mask > 0, dtype=np.int32)  # Ensure it's binary
             masks[i, :] = np.reshape(mask, M**2)
     else:  # If there are no fg masks (it does happen)
+        # 虚拟构造blob
         # The network cannot handle empty blobs, so we must provide a mask
         # We simply take the first bg roi, given it an all -1's mask (ignore
         # label), and label it with class zero (bg).
@@ -91,6 +101,7 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
         # Mark that the first roi has a mask
         roi_has_mask[0] = 1
 
+    # 在这里转化为多个通道
     if cfg.MRCNN.CLS_SPECIFIC_MASK:
         masks = _expand_to_class_specific_mask_targets(masks, mask_class_labels)
 
@@ -100,6 +111,7 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
     rois_fg = np.hstack((repeated_batch_idx, rois_fg))
 
     # Update blobs dict with Mask R-CNN blobs
+    # 新增加的mask rcnn blob
     blobs['mask_rois'] = rois_fg
     blobs['roi_has_mask_int32'] = roi_has_mask
     blobs['masks_int32'] = masks
