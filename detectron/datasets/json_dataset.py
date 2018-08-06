@@ -385,12 +385,15 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
         # Note: unlike in other places, here we intentionally include all gt
         # rois, even ones marked as crowd. Boxes that overlap with crowds will
         # be filtered out later (see: _filter_crowd_proposals).
+        # gt_classes标记每个gt属于哪个类别，可以获得所有gt的所在的位置
         gt_inds = np.where(entry['gt_classes'] > 0)[0]
         if len(gt_inds) > 0:
+            # gt box
             gt_boxes = entry['boxes'][gt_inds, :]
+            # gt class
             gt_classes = entry['gt_classes'][gt_inds]
 
-            # 计算每个box和gt box的iou
+            # 计算anchor生成的box和gt的iou
             proposal_to_gt_overlaps = box_utils.bbox_overlaps(
                 boxes.astype(dtype=np.float32, copy=False),
                 gt_boxes.astype(dtype=np.float32, copy=False)
@@ -404,10 +407,12 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
             # Those boxes with non-zero overlap with gt boxes
             I = np.where(maxes > 0)[0]
             # Record max overlaps with the class of the appropriate gt box
+            # 进行iou赋值
             gt_overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
 
-            # box -> gt的索引
+            # 每个box对应的gt的索引
             box_to_gt_ind_map[I] = gt_inds[argmaxes[I]]
+
         # 添加新的box
         entry['boxes'] = np.append(
             entry['boxes'],
@@ -473,6 +478,7 @@ def _add_class_assignments(roidb):
     roidb entry.
     """
     for entry in roidb:
+        # 每个box与所有类别的iou
         gt_overlaps = entry['gt_overlaps'].toarray()
         # max overlap with gt over classes (columns)
         max_overlaps = gt_overlaps.max(axis=1)

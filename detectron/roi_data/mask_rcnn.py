@@ -40,21 +40,20 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
     # Prepare the mask targets by associating one gt mask to each training roi
     # that has a fg (non-bg) class label.
     # 默认为28，在fpn的收集与分配函数中调用到此处
-    # TODO(zzdxfei) work here
     M = cfg.MRCNN.RESOLUTION
-    # 找到gt
+    # 找到gt box
     polys_gt_inds = np.where(
         (roidb['gt_classes'] > 0) & (roidb['is_crowd'] == 0)
     )[0]
+    # gt box的分割信息
     polys_gt = [roidb['segms'][i] for i in polys_gt_inds]
-    # 包围多边形的矩形
+    # 由分割信息获得最小的包围盒
     boxes_from_polys = segm_utils.polys_to_boxes(polys_gt)
 
-    # 每个ground truth对应的真实标签
+    # 获得fg目标的索引
     fg_inds = np.where(blobs['labels_int32'] > 0)[0]
 
-    # roi包含mask
-    # 长度为512
+    # 每个roi是否包含mask
     roi_has_mask = blobs['labels_int32'].copy()
     roi_has_mask[roi_has_mask > 0] = 1
 
