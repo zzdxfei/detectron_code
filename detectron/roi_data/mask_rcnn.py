@@ -42,6 +42,7 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
     # 默认为28，在fpn的收集与分配函数中调用到此处
     # TODO(zzdxfei) work here
     M = cfg.MRCNN.RESOLUTION
+    # 找到gt
     polys_gt_inds = np.where(
         (roidb['gt_classes'] > 0) & (roidb['is_crowd'] == 0)
     )[0]
@@ -53,26 +54,29 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
     fg_inds = np.where(blobs['labels_int32'] > 0)[0]
 
     # roi包含mask
+    # 长度为512
     roi_has_mask = blobs['labels_int32'].copy()
     roi_has_mask[roi_has_mask > 0] = 1
 
+    # 采样的512个roi中包含fg目标
     if fg_inds.shape[0] > 0:
         # Class labels for the foreground rois
         # mask对应的标签
         mask_class_labels = blobs['labels_int32'][fg_inds]
-        # mask
+        # 每个fg目标对应于一个mask
         masks = blob_utils.zeros((fg_inds.shape[0], M**2), int32=True)
 
         # Find overlap between all foreground rois and the bounding boxes
         # enclosing each segmentation
         rois_fg = sampled_boxes[fg_inds]
+        # 使用由mask计算得到的box作为参考重新计算overlaps
         overlaps_bbfg_bbpolys = box_utils.bbox_overlaps(
             rois_fg.astype(np.float32, copy=False),
             boxes_from_polys.astype(np.float32, copy=False)
         )
         # Map from each fg rois to the index of the mask with highest overlap
         # (measured by bbox overlap)
-        # 找到每个roi对应的mask索引
+        # 找到每个fg roi对应的mask索引
         fg_polys_inds = np.argmax(overlaps_bbfg_bbpolys, axis=1)
 
         # add fg targets
@@ -85,6 +89,7 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
             mask = segm_utils.polys_to_mask_wrt_box(poly_gt, roi_fg, M)
             # 二值化
             mask = np.array(mask > 0, dtype=np.int32)  # Ensure it's binary
+            # 对第i个fg roi的mask进行赋值
             masks[i, :] = np.reshape(mask, M**2)
     else:  # If there are no fg masks (it does happen)
         # 虚拟构造blob
@@ -106,6 +111,7 @@ def add_mask_rcnn_blobs(blobs, sampled_boxes, roidb, im_scale, batch_idx):
         masks = _expand_to_class_specific_mask_targets(masks, mask_class_labels)
 
     # Scale rois_fg and format as (batch_idx, x1, y1, x2, y2)
+    # 构造mask rois
     rois_fg *= im_scale
     repeated_batch_idx = batch_idx * blob_utils.ones((rois_fg.shape[0], 1))
     rois_fg = np.hstack((repeated_batch_idx, rois_fg))
@@ -125,6 +131,7 @@ def _expand_to_class_specific_mask_targets(masks, mask_class_labels):
     M = cfg.MRCNN.RESOLUTION
 
     # Target values of -1 are "don't care" / ignore labels
+    # 初始化为-1，表示不care
     mask_targets = -blob_utils.ones(
         (masks.shape[0], cfg.MODEL.NUM_CLASSES * M**2), int32=True
     )

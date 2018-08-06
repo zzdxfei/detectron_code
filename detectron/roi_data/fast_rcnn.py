@@ -142,16 +142,24 @@ def _sample_rois(roidb, im_scale, batch_idx):
     获得fg和bg roi
 
     """
+    # 512
     rois_per_image = int(cfg.TRAIN.BATCH_SIZE_PER_IM)
+
+    # 128
     fg_rois_per_image = int(np.round(cfg.TRAIN.FG_FRACTION * rois_per_image))
+
     max_overlaps = roidb['max_overlaps']
 
     # Select foreground RoIs as those with >= FG_THRESH overlap
+    # 选择overlaps大于给定值的作为正样本
     fg_inds = np.where(max_overlaps >= cfg.TRAIN.FG_THRESH)[0]
     # Guard against the case when an image has fewer than fg_rois_per_image
     # foreground RoIs
+    # fg的数量
     fg_rois_per_this_image = np.minimum(fg_rois_per_image, fg_inds.size)
+
     # Sample foreground regions without replacement
+    # 随机选择fg_rois_per_this_image个正样本
     if fg_inds.size > 0:
         fg_inds = npr.choice(
             fg_inds, size=fg_rois_per_this_image, replace=False
@@ -167,15 +175,18 @@ def _sample_rois(roidb, im_scale, batch_idx):
     bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
     bg_rois_per_this_image = np.minimum(bg_rois_per_this_image, bg_inds.size)
     # Sample foreground regions without replacement
+    # 选择bg目标
     if bg_inds.size > 0:
         bg_inds = npr.choice(
             bg_inds, size=bg_rois_per_this_image, replace=False
         )
 
     # The indices that we're selecting (both fg and bg)
+    # 合并fg和bg
     keep_inds = np.append(fg_inds, bg_inds)
     # Label is the class each RoI has max overlap with
     sampled_labels = roidb['max_classes'][keep_inds]
+    # bg rois的标签置为0
     sampled_labels[fg_rois_per_this_image:] = 0  # Label bg RoIs with class 0
     sampled_boxes = roidb['boxes'][keep_inds]
 
@@ -187,6 +198,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
     )
 
     # Scale rois and format as (batch_idx, x1, y1, x2, y2)
+    # 构造选择的选择的rois
     sampled_rois = sampled_boxes * im_scale
     repeated_batch_idx = batch_idx * blob_utils.ones((sampled_rois.shape[0], 1))
     sampled_rois = np.hstack((repeated_batch_idx, sampled_rois))
