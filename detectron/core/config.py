@@ -94,7 +94,8 @@ __C.TRAIN.MAX_SIZE = 1000
 
 # Images *per GPU* in the training minibatch
 # Total images per minibatch = TRAIN.IMS_PER_BATCH * NUM_GPUS
-# 每块GPU上一次训练的图片个数
+# 每块GPU上一次训练的图片个数，其实是roi的个数，从roidb中选择2个roi，然后加载
+# 对应的图片
 __C.TRAIN.IMS_PER_BATCH = 2
 
 # RoI minibatch size *per image* (number of regions of interest [ROIs])
