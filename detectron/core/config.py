@@ -185,6 +185,7 @@ __C.TRAIN.RPN_POST_NMS_TOP_N = 2000
 
 # Remove RPN anchors that go outside the image by RPN_STRADDLE_THRESH pixels
 # Set to -1 or a large value, e.g. 100000, to disable pruning anchors
+# 如果要保证所有anchor都有效，就设置为很大的值
 __C.TRAIN.RPN_STRADDLE_THRESH = 0
 
 # Proposal height and width both need to be greater than RPN_MIN_SIZE

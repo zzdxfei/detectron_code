@@ -31,8 +31,6 @@ import detectron.utils.boxes as box_utils
 
 logger = logging.getLogger(__name__)
 
-# TODO(zzdxfei) work here  (how to build *wide)
-
 def get_rpn_blob_names(is_training=True):
     """Blob names used by RPN."""
     # im_info: (height, width, image scale)
@@ -42,6 +40,7 @@ def get_rpn_blob_names(is_training=True):
         blob_names += ['roidb']
         if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
             # Same format as RPN blobs, but one per FPN level
+            # 多级fpn层
             for lvl in range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1):
                 blob_names += [
                     'rpn_labels_int32_wide_fpn' + str(lvl),
@@ -51,6 +50,7 @@ def get_rpn_blob_names(is_training=True):
                 ]
         else:
             # Single level RPN blobs
+            # 单个RPN层
             blob_names += [
                 'rpn_labels_int32_wide',
                 'rpn_bbox_targets_wide',
@@ -62,15 +62,25 @@ def get_rpn_blob_names(is_training=True):
 
 def add_rpn_blobs(blobs, im_scales, roidb):
     """Add blobs needed training RPN-only and end-to-end Faster R-CNN models."""
+    """
+    添加训练faster rcnn需要的blobs
+    """
     if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
         # RPN applied to many feature levels, as in the FPN paper
         k_max = cfg.FPN.RPN_MAX_LEVEL
         k_min = cfg.FPN.RPN_MIN_LEVEL
         foas = []
         for lvl in range(k_min, k_max + 1):
+            # lvl = 2 => 4.0
             field_stride = 2.**lvl
+            # 32.0
             anchor_sizes = (cfg.FPN.RPN_ANCHOR_START_SIZE * 2.**(lvl - k_min), )
+
+            # [0.5, 1.0, 2.0]
             anchor_aspect_ratios = cfg.FPN.RPN_ASPECT_RATIOS
+
+            # 对于一个特征图，获得特征图上每一个cell所对应的anchor，
+            # 该anchor对应于网络输入的大小
             foa = data_utils.get_field_of_anchors(
                 field_stride, anchor_sizes, anchor_aspect_ratios
             )
@@ -84,22 +94,32 @@ def add_rpn_blobs(blobs, im_scales, roidb):
 
     for im_i, entry in enumerate(roidb):
         scale = im_scales[im_i]
+        # * scale获得相对于网络输入的信息
         im_height = np.round(entry['height'] * scale)
         im_width = np.round(entry['width'] * scale)
         gt_inds = np.where(
             (entry['gt_classes'] > 0) & (entry['is_crowd'] == 0)
         )[0]
+
+        # gt box
         gt_rois = entry['boxes'][gt_inds, :] * scale
+
         # TODO(rbg): gt_boxes is poorly named;
         # should be something like 'gt_rois_info'
         gt_boxes = blob_utils.zeros((len(gt_inds), 6))
+        # 属于哪个图片
         gt_boxes[:, 0] = im_i  # batch inds
+        # box
         gt_boxes[:, 1:5] = gt_rois
+        # 类别信息
         gt_boxes[:, 5] = entry['gt_classes'][gt_inds]
+
+        # 写入blob
         im_info = np.array([[im_height, im_width, scale]], dtype=np.float32)
         blobs['im_info'].append(im_info)
 
         # Add RPN targets
+        # 添加RPN的目标值
         if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
             # RPN applied to many feature levels, as in the FPN paper
             rpn_blobs = _get_rpn_blobs(
@@ -136,6 +156,7 @@ def add_rpn_blobs(blobs, im_scales, roidb):
 
 
 def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
+
     total_anchors = all_anchors.shape[0]
     straddle_thresh = cfg.TRAIN.RPN_STRADDLE_THRESH
 
@@ -154,16 +175,22 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     else:
         inds_inside = np.arange(all_anchors.shape[0])
         anchors = all_anchors
+
+    # ^^^ 对anchors过滤了边界上的anchor
+
     num_inside = len(inds_inside)
 
     logger.debug('total_anchors: {}'.format(total_anchors))
     logger.debug('inds_inside: {}'.format(num_inside))
     logger.debug('anchors.shape: {}'.format(anchors.shape))
 
+
     # Compute anchor labels:
     # label=1 is positive, 0 is negative, -1 is don't care (ignore)
     labels = np.empty((num_inside, ), dtype=np.int32)
     labels.fill(-1)
+
+    # TODO(zzdxfei) work here
     if len(gt_boxes) > 0:
         # Compute overlaps between the anchors and the gt boxes overlaps
         anchor_by_gt_overlap = box_utils.bbox_overlaps(anchors, gt_boxes)

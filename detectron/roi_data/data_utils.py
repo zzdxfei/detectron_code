@@ -59,21 +59,34 @@ def get_field_of_anchors(
         return _threadlocal_foa.cache[cache_key]
 
     # Anchors at a single feature cell
+    # 一个特征单元格的anchor, cell->格子
     cell_anchors = generate_anchors(
         stride=stride, sizes=anchor_sizes, aspect_ratios=anchor_aspect_ratios
     )
+    # 3
     num_cell_anchors = cell_anchors.shape[0]
 
     # Generate canonical proposals from shifted anchors
     # Enumerate all shifted positions on the (H, W) grid
+    # TRAIN.MAX_SIZE对这里会产生影响
+    # 在构建fpn时从后往前进行，所以这里先计算最后一层的输出
     fpn_max_size = cfg.FPN.COARSEST_STRIDE * np.ceil(
         cfg.TRAIN.MAX_SIZE / float(cfg.FPN.COARSEST_STRIDE)
     )
+    # 该层的特征单元的个数
     field_size = int(np.ceil(fpn_max_size / float(stride)))
+
+    # 有了所有中心点的坐标，在加上anchor的偏移，就得到了RPN
+
+    # shifts为对应于网络输入的像素坐标
     shifts = np.arange(0, field_size) * stride
+
+    # 对应于anchor中心点在网络输入中的坐标集合
     shift_x, shift_y = np.meshgrid(shifts, shifts)
+
     shift_x = shift_x.ravel()
     shift_y = shift_y.ravel()
+    # 形状为(., 4)
     shifts = np.vstack((shift_x, shift_y, shift_x, shift_y)).transpose()
 
     # Broacast anchors over shifts to enumerate all anchors at all positions
@@ -82,13 +95,17 @@ def get_field_of_anchors(
     #   - K shifts of shape (K, 1, 4) to get
     #   - all shifted anchors of shape (K, A, 4)
     #   - reshape to (K*A, 4) shifted anchors
+    # anchor的个数
     A = num_cell_anchors
+    # 有多少个位置
     K = shifts.shape[0]
     field_of_anchors = (
         cell_anchors.reshape((1, A, 4)) +
         shifts.reshape((1, K, 4)).transpose((1, 0, 2))
     )
     field_of_anchors = field_of_anchors.reshape((K * A, 4))
+
+    # 特征图中所有位置的anchor，以及构造信息
     foa = FieldOfAnchors(
         field_of_anchors=field_of_anchors.astype(np.float32),
         num_cell_anchors=num_cell_anchors,

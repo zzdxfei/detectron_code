@@ -62,12 +62,19 @@ def get_minibatch_blob_names(is_training=True):
 
 
 def get_minibatch(roidb):
-    """Given a roidb, construct a minibatch sampled from it."""
+    """Given a roidb, construct a minibatch sampled from it.
+
+    构造一组训练数据
+
+    """
     # We collect blobs from each image onto a list and then concat them into a
     # single tensor, hence we initialize each blob to an empty list
     blobs = {k: [] for k in get_minibatch_blob_names()}
     # Get the input image blob, formatted for caffe2
+
+    # 读取图片，进行归一化处理后构造图片blob
     im_blob, im_scales = _get_image_blob(roidb)
+
     blobs['data'] = im_blob
     if cfg.RPN.RPN_ON:
         # RPN-only or end-to-end Faster/Mask R-CNN
