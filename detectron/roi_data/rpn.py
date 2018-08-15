@@ -184,61 +184,76 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     logger.debug('inds_inside: {}'.format(num_inside))
     logger.debug('anchors.shape: {}'.format(anchors.shape))
 
-
     # Compute anchor labels:
     # label=1 is positive, 0 is negative, -1 is don't care (ignore)
     labels = np.empty((num_inside, ), dtype=np.int32)
     labels.fill(-1)
 
-    # TODO(zzdxfei) work here
     if len(gt_boxes) > 0:
         # Compute overlaps between the anchors and the gt boxes overlaps
         anchor_by_gt_overlap = box_utils.bbox_overlaps(anchors, gt_boxes)
+
+        # anchor对应的最大的gt的索引
         # Map from anchor to gt box that has highest overlap
         anchor_to_gt_argmax = anchor_by_gt_overlap.argmax(axis=1)
+        # anchor对应的最大的gt之间的iou
         # For each anchor, amount of overlap with most overlapping gt box
         anchor_to_gt_max = anchor_by_gt_overlap[np.arange(num_inside),
                                                 anchor_to_gt_argmax]
 
         # Map from gt box to an anchor that has highest overlap
+        # 每个gt对应的最大的anchor的索引
         gt_to_anchor_argmax = anchor_by_gt_overlap.argmax(axis=0)
         # For each gt box, amount of overlap with most overlapping anchor
+        # 每个gt和所有anchor的最大的iou
         gt_to_anchor_max = anchor_by_gt_overlap[
             gt_to_anchor_argmax,
             np.arange(anchor_by_gt_overlap.shape[1])
         ]
+
         # Find all anchors that share the max overlap amount
         # (this includes many ties)
+        # 找到和gt最大的iou的所有anchor
+        # == 为每个元素进行相等比较，相同为True，不同为False
+        # np.where返回两个数字，标记True的位置，这里仅使用axis 0的坐标
         anchors_with_max_overlap = np.where(
             anchor_by_gt_overlap == gt_to_anchor_max
         )[0]
 
         # Fg label: for each gt use anchors with highest overlap
         # (including ties)
+        # 这些anchor进行目标预测
         labels[anchors_with_max_overlap] = 1
         # Fg label: above threshold IOU
         labels[anchor_to_gt_max >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
 
     # subsample positive labels if we have too many
+    # 0.5 * 256
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCH_SIZE_PER_IM)
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
             fg_inds, size=(len(fg_inds) - num_fg), replace=False
         )
+        # 过多的正样本忽略
         labels[disable_inds] = -1
+    # rpn中正样本的索引
     fg_inds = np.where(labels == 1)[0]
+
 
     # subsample negative labels if we have too many
     # (samples with replacement, but since the set of bg inds is large most
     # samples will not have repeats)
     num_bg = cfg.TRAIN.RPN_BATCH_SIZE_PER_IM - np.sum(labels == 1)
+    # 和gt iou的最大值小于0.3，则视为负样本
     bg_inds = np.where(anchor_to_gt_max < cfg.TRAIN.RPN_NEGATIVE_OVERLAP)[0]
     if len(bg_inds) > num_bg:
         enable_inds = bg_inds[npr.randint(len(bg_inds), size=num_bg)]
         labels[enable_inds] = 0
+    # 负样本的索引
     bg_inds = np.where(labels == 0)[0]
 
+    # box回归目标
     bbox_targets = np.zeros((num_inside, 4), dtype=np.float32)
     bbox_targets[fg_inds, :] = data_utils.compute_targets(
         anchors[fg_inds, :], gt_boxes[anchor_to_gt_argmax[fg_inds], :]
@@ -249,6 +264,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     # Inside weights allow us to set zero loss on an element-wise basis
     # Bbox regression is only trained on positive examples so we set their
     # weights to 1.0 (or otherwise if config is different) and 0 otherwise
+    # 正样本为1.0
     bbox_inside_weights = np.zeros((num_inside, 4), dtype=np.float32)
     bbox_inside_weights[labels == 1, :] = (1.0, 1.0, 1.0, 1.0)
 
@@ -264,6 +280,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     bbox_outside_weights[labels == 0, :] = 1.0 / num_examples
 
     # Map up to original set of anchors
+    # 通过inds_inside将信息映射回原始数组
     labels = data_utils.unmap(labels, total_anchors, inds_inside, fill=-1)
     bbox_targets = data_utils.unmap(
         bbox_targets, total_anchors, inds_inside, fill=0
@@ -276,6 +293,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
     )
 
     # Split the generated labels, etc. into labels per each field of anchors
+    # 将labels等信息映射到产生anchor的每个特征图
     blobs_out = []
     start_idx = 0
     for foa in foas:
@@ -289,6 +307,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
         _bbox_outside_weights = bbox_outside_weights[start_idx:end_idx, :]
         start_idx = end_idx
 
+        # 和特诊图进行对应，直接裁剪进行使用
         # labels output with shape (1, A, height, width)
         _labels = _labels.reshape((1, H, W, A)).transpose(0, 3, 1, 2)
         # bbox_targets output with shape (1, 4 * A, height, width)
@@ -308,4 +327,6 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
                 rpn_bbox_outside_weights_wide=_bbox_outside_weights
             )
         )
+
+    # nice work.
     return blobs_out[0] if len(blobs_out) == 1 else blobs_out

@@ -158,6 +158,7 @@ __C.TRAIN.ASPECT_GROUPING = True
 # Minimum overlap required between an anchor and ground-truth box for the
 # (anchor, gt box) pair to be a positive example (IOU >= thresh ==> positive RPN
 # example)
+# > 该值，则该anchor视为正样本
 __C.TRAIN.RPN_POSITIVE_OVERLAP = 0.7
 
 # Maximum overlap allowed between an anchor and ground-truth box for the
