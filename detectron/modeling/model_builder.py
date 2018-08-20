@@ -104,6 +104,7 @@ def retinanet(model):
 # Helper functions for building various re-usable network bits
 # ---------------------------------------------------------------------------- #
 
+# generalized_rcnn, True
 def create(model_type_func, train=False, gpu_id=0):
     """Generic model creation function that dispatches to specific model
     building functions.
@@ -113,6 +114,7 @@ def create(model_type_func, train=False, gpu_id=0):
     targeted to a specific GPU by specifying gpu_id. This is used by
     optimizer.build_data_parallel_model() during test time.
     """
+    # 构造一个框架，后面不断添加组件，完成模型的构建
     model = DetectionModelHelper(
         name=model_type_func,
         train=train,
@@ -166,7 +168,6 @@ def build_generic_detection_model(
     def _single_gpu_build_func(model):
         """Build the model on a single GPU. Can be called in a loop over GPUs
         with name and device scoping to create a data parallel model.
-
         在一个gpu上创建模型
         """
         # Add the conv body (called "backbone architecture" in papers)

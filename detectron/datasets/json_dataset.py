@@ -128,7 +128,8 @@ class JsonDataset(object):
                 '_add_proposals_from_file took {:.3f}s'.
                 format(self.debug_timer.toc(average=False))
             )
-        # 对每个entry添加max_classes, max_overlaps
+
+        # 对每个entry添加max_classes, max_overlaps, 这些信息每个box对应一个
         _add_class_assignments(roidb)
         return roidb
 
@@ -139,10 +140,13 @@ class JsonDataset(object):
         # Reference back to the parent dataset
         entry['dataset'] = self
         # Make file_name an abs path
+        # 添加图像的绝对路径
         im_path = os.path.join(
             self.image_directory, self.image_prefix + entry['file_name']
         )
+        # 如果图片不存在，报错
         assert os.path.exists(im_path), 'Image \'{}\' not found'.format(im_path)
+
         entry['image'] = im_path
         entry['flipped'] = False
         entry['has_visible_keypoints'] = False
@@ -156,6 +160,7 @@ class JsonDataset(object):
             np.empty((0, self.num_classes), dtype=np.float32)
         )
         entry['is_crowd'] = np.empty((0), dtype=np.bool)
+
         # 'box_to_gt_ind_map': Shape is (#rois). Maps from each roi to the index
         # in the list of rois that satisfy np.where(entry['gt_classes'] > 0)
         entry['box_to_gt_ind_map'] = np.empty((0), dtype=np.int32)
@@ -163,6 +168,7 @@ class JsonDataset(object):
             entry['gt_keypoints'] = np.empty(
                 (0, 3, self.num_keypoints), dtype=np.int32
             )
+        # 去除无用的键值对
         # Remove unwanted fields that come from the json file (if they exist)
         for k in ['date_captured', 'url', 'license', 'file_name']:
             if k in entry:
@@ -172,13 +178,16 @@ class JsonDataset(object):
         """Add ground truth annotation metadata to an roidb entry.
         对每个训练样本添加ground truth信息
         """
-        # 获取对应的标注信息
+        # 获取图片对应的标注信息
         ann_ids = self.COCO.getAnnIds(imgIds=entry['id'], iscrowd=None)
+        # 加载标注信息
         objs = self.COCO.loadAnns(ann_ids)
+
         # Sanitize bboxes -- some are invalid
         # 存储有效标注
         valid_objs = []
         valid_segms = []
+
         width = entry['width']
         height = entry['height']
 
@@ -195,30 +204,40 @@ class JsonDataset(object):
             if 'ignore' in obj and obj['ignore'] == 1:
                 continue
             # Convert form (x1, y1, w, h) to (x1, y1, x2, y2)
-            # interesting
             x1, y1, x2, y2 = box_utils.xywh_to_xyxy(obj['bbox'])
+            # 标注信息超过图像也没有关系，在进行数据集转化时可以随意了
             x1, y1, x2, y2 = box_utils.clip_xyxy_to_image(
                 x1, y1, x2, y2, height, width
             )
             # Require non-zero seg area and more than 1x1 box size
+            # 如果标注的包围盒在图像外，则在训练时去除了这个包围盒
             if obj['area'] > 0 and x2 > x1 and y2 > y1:
                 obj['clean_bbox'] = [x1, y1, x2, y2]
                 valid_objs.append(obj)
                 valid_segms.append(obj['segmentation'])
 
-        # 分配存储空间
+        # 有效的标注的个数
         num_valid_objs = len(valid_objs)
 
+        # box
         boxes = np.zeros((num_valid_objs, 4), dtype=entry['boxes'].dtype)
+
+        # box对应的类别
         gt_classes = np.zeros((num_valid_objs), dtype=entry['gt_classes'].dtype)
+
+        # 每个box和每个类别的overlap
         gt_overlaps = np.zeros(
             (num_valid_objs, self.num_classes),
             dtype=entry['gt_overlaps'].dtype
         )
 
+        # 目标的大小
         seg_areas = np.zeros((num_valid_objs), dtype=entry['seg_areas'].dtype)
+
+        # 每个box对应于一个
         is_crowd = np.zeros((num_valid_objs), dtype=entry['is_crowd'].dtype)
 
+        # box对应的gt的索引
         box_to_gt_ind_map = np.zeros(
             (num_valid_objs), dtype=entry['box_to_gt_ind_map'].dtype
         )
@@ -248,6 +267,8 @@ class JsonDataset(object):
                 gt_overlaps[ix, :] = -1.0
             else:
                 gt_overlaps[ix, cls] = 1.0
+
+        # 赋值
         entry['boxes'] = np.append(entry['boxes'], boxes, axis=0)
         entry['segms'].extend(valid_segms)
         # To match the original implementation:
@@ -478,14 +499,13 @@ def _add_class_assignments(roidb):
     roidb entry.
     """
     for entry in roidb:
-        # 每个box与所有类别的iou
         gt_overlaps = entry['gt_overlaps'].toarray()
         # max overlap with gt over classes (columns)
         max_overlaps = gt_overlaps.max(axis=1)
         # gt class that had the max overlap
         max_classes = gt_overlaps.argmax(axis=1)
 
-        # 添加每个包围盒的信息
+        # 每个box对应一个
         entry['max_classes'] = max_classes
         entry['max_overlaps'] = max_overlaps
 

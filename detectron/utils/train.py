@@ -50,6 +50,8 @@ import detectron.utils.net as nu
 def train_model():
     """Model training loop."""
     logger = logging.getLogger(__name__)
+
+    # 构建训练模型
     model, weights_file, start_iter, checkpoints, output_dir = create_model()
     if 'final' in checkpoints:
         # The final model was found in the output directory, so nothing to do
@@ -103,6 +105,7 @@ def create_model():
     logger = logging.getLogger(__name__)
     start_iter = 0
     checkpoints = {}
+
     # 模型输出目录
     output_dir = get_output_dir(cfg.TRAIN.DATASETS, training=True)
     weights_file = cfg.TRAIN.WEIGHTS

@@ -110,6 +110,7 @@ def _get_image_blob(roidb):
             'Failed to read image \'{}\''.format(roidb[i]['image'])
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
+
         target_size = cfg.TRAIN.SCALES[scale_inds[i]]
         im, im_scale = blob_utils.prep_im_for_blob(
             im, cfg.PIXEL_MEANS, target_size, cfg.TRAIN.MAX_SIZE

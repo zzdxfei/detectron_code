@@ -68,6 +68,7 @@ def combined_roidb_for_training(dataset_names, proposal_files):
     roidb = filter_for_training(roidb)
 
     logger.info('Computing bounding-box regression targets...')
+
     # 添加包围盒回归目标
     add_bbox_regression_targets(roidb)
     logger.info('done')
@@ -114,6 +115,7 @@ def extend_with_flipped_entries(roidb, dataset):
 
 def filter_for_training(roidb):
     """Remove roidb entries that have no usable RoIs based on config settings.
+    去除无用的训练样本，训练样本至少要包含一个正样本或者负样本
     """
     def is_valid(entry):
         # Valid images have:
@@ -143,16 +145,26 @@ def filter_for_training(roidb):
 def add_bbox_regression_targets(roidb):
     """Add information needed to train bounding-box regressors."""
     for entry in roidb:
+        # (类别，tx, ty, tw, th)
         entry['bbox_targets'] = compute_bbox_regression_targets(entry)
 
 
 def compute_bbox_regression_targets(entry):
-    """Compute bounding-box regression targets for an image."""
+    """
+    Compute bounding-box regression targets for an image.
+
+    对每个box计算box回归目标值，首先找出要预测的box，再找到gt，计算iou，
+    获得回归量后在还原回去
+
+    """
     # Indices of ground-truth ROIs
     rois = entry['boxes']
     overlaps = entry['max_overlaps']
     labels = entry['max_classes']
+
+    # gt索引
     gt_inds = np.where((entry['gt_classes'] > 0) & (entry['is_crowd'] == 0))[0]
+
     # Targets has format (class, tx, ty, tw, th)
     targets = np.zeros((rois.shape[0], 5), dtype=np.float32)
     if len(gt_inds) == 0:
@@ -160,6 +172,7 @@ def compute_bbox_regression_targets(entry):
         return targets
 
     # Indices of examples for which we try to make predictions
+    # 0.5
     ex_inds = np.where(overlaps >= cfg.TRAIN.BBOX_THRESH)[0]
 
     # Get IoU overlap between each ex ROI and gt ROI
@@ -169,9 +182,12 @@ def compute_bbox_regression_targets(entry):
 
     # Find which gt ROI each ex ROI has max overlap with:
     # this will be the ex ROI's gt target
+    # box与哪个gt的iou最大
     gt_assignment = ex_gt_overlaps.argmax(axis=1)
+
     gt_rois = rois[gt_inds[gt_assignment], :]
     ex_rois = rois[ex_inds, :]
+
     # Use class "1" for all boxes if using class_agnostic_bbox_reg
     targets[ex_inds, 0] = (
         1 if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG else labels[ex_inds])

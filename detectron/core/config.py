@@ -723,6 +723,7 @@ __C.FPN.MULTILEVEL_ROIS = False
 __C.FPN.ROI_CANONICAL_SCALE = 224  # s0
 __C.FPN.ROI_CANONICAL_LEVEL = 4  # k0: where s0 maps to
 # Coarsest level of the FPN pyramid
+# 选择 2 -- 5 fpn层输出的rois
 __C.FPN.ROI_MAX_LEVEL = 5
 # Finest level of the FPN pyramid
 __C.FPN.ROI_MIN_LEVEL = 2
@@ -1084,8 +1085,10 @@ def assert_and_infer_cfg(cache_urls=True, make_immutable=True):
     during script execution (which can lead to hard to debug errors or code
     that's harder to understand than is necessary).
     """
+    # 设定使用RPN
     if __C.MODEL.RPN_ONLY or __C.MODEL.FASTER_RCNN:
         __C.RPN.RPN_ON = True
+    # 如果使用RPN，或者是retinanet，则不需要预先计算的候选区域
     if __C.RPN.RPN_ON or __C.RETINANET.RETINANET_ON:
         __C.TEST.PRECOMPUTED_PROPOSALS = False
     if cache_urls:
