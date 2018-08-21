@@ -46,6 +46,7 @@ class GenerateProposalLabelsOp(object):
         # implementation we are *not* filtering crowd proposals.
         # This choice should be investigated in the future (it likely does
         # not matter).
+        # 在这里添加rpn网络得到的rois
         json_dataset.add_proposals(roidb, rois, im_scales, crowd_thresh=0)
         roidb_utils.add_bbox_regression_targets(roidb)
         blobs = {k: [] for k in output_blob_names}

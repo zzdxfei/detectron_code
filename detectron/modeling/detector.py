@@ -114,14 +114,16 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             number of minibatch images, A is the number of anchors per
             locations, and (H, W) is the spatial size of the prediction grid.
             Each value represents a "probability of object" rating in [0, 1].
+            每个anchor包含目标的概率
           - 'rpn_bbox_pred': 4D tensor of shape (N, 4 * A, H, W) of predicted
             deltas for transformation anchor boxes into RPN proposals.
+            每个anchor的box回归量
           - 'im_info': 2D tensor of shape (N, 3) where the three columns encode
             the input image's [height, width, scale]. Height and width are
             for the input to the network, not the original image; scale is the
             scale factor used to scale the original image to the network input
             size.
-
+            (高，宽，scale)
         blobs_out:
           - 'rpn_rois': 2D tensor of shape (R, 5), for R RPN proposals where the
             five columns encode [batch ind, x1, y1, x2, y2]. The boxes are
@@ -129,8 +131,10 @@ class DetectionModelHelper(cnn.CNNModelHelper):
             original image; these proposals must be scaled by 1 / scale (where
             scale comes from im_info; see above) to transform it back to the
             original input image coordinate system.
+            roi = (batch index, x1, y1, x2, y2)
           - 'rpn_roi_probs': 1D tensor of objectness probability scores
             (extracted from rpn_cls_probs; see above).
+            每个roi对应的得分
         """
         name = 'GenerateProposalsOp:' + ','.join([str(b) for b in blobs_in])
         # spatial_scale passed to the Python op is only used in convert_pkl_to_pb
@@ -198,6 +202,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
           - rois_idx_restore is a permutation on the concatenation of all
             rois_fpn<i>, i=min...max, such that when applied the RPN RoIs are
             restored to their original order in the input blobs.
+            对于所有rois，依次获取属于每一层的fpn的roi的索引，将这些索引连接起来，就是
+            这个数组的意义
 
         If used during training, then the output blobs will also include:
           [labels, bbox_targets, bbox_inside_weights, bbox_outside_weights].

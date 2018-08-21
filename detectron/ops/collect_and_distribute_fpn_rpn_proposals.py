@@ -41,7 +41,7 @@ class CollectAndDistributeFpnRpnProposalsOp(object):
         #  rpn_roi_probs_fpn2, ..., rpn_roi_probs_fpn6]
         # If training with Faster R-CNN, then inputs will additionally include
         #  + [roidb, im_info]
-        # 将所有的rois收集起来，并取得分最高的一部分
+        # 将所有的rois收集起来，并取得分最高的前2000个
         rois = collect(inputs, self._train)
         if self._train:
             # During training we reuse the data loader code. We populate roidb
@@ -56,13 +56,13 @@ class CollectAndDistributeFpnRpnProposalsOp(object):
             # not matter).
             # 在此之前，roidb仅包含gt的标注信息，这条语句添加了anchor获得的rois
             # roidb中包含batch size个标注信息 (2)
+            # 添加的是过滤后的rois
             json_dataset.add_proposals(roidb, rois, im_scales, crowd_thresh=0)
 
             roidb_utils.add_bbox_regression_targets(roidb)
 
             # Compute training labels for the RPN proposals; also handles
             # distributing the proposals over FPN levels
-            # TODO(zzdxfei)  work here
             output_blob_names = fast_rcnn_roi_data.get_fast_rcnn_blob_names()
             blobs = {k: [] for k in output_blob_names}
             fast_rcnn_roi_data.add_fast_rcnn_blobs(blobs, im_scales, roidb)
@@ -77,6 +77,7 @@ class CollectAndDistributeFpnRpnProposalsOp(object):
 
 def collect(inputs, is_training):
     cfg_key = 'TRAIN' if is_training else 'TEST'
+    # test 2000 / train 2000
     post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
     k_max = cfg.FPN.RPN_MAX_LEVEL
     k_min = cfg.FPN.RPN_MIN_LEVEL

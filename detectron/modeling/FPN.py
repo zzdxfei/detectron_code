@@ -573,6 +573,7 @@ def add_multilevel_roi_blobs(
     rois_idx_order = np.empty((0, ))
     rois_stacked = np.zeros((0, 5), dtype=np.float32)  # for assert
     for lvl in range(lvl_min, lvl_max + 1):
+        # 本层的rois索引
         idx_lvl = np.where(target_lvls == lvl)[0]
         blobs[blob_prefix + '_fpn' + str(lvl)] = rois[idx_lvl, :]
         rois_idx_order = np.concatenate((rois_idx_order, idx_lvl))

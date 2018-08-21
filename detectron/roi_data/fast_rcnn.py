@@ -270,10 +270,12 @@ def _add_multilevel_rois(blobs):
         # Get target level for each roi
         # Recall blob rois are in (batch_idx, x1, y1, x2, y2) format, hence take
         # the box coordinates from columns 1:5
+        # 计算每个proposal的目标fpn层
         target_lvls = fpn.map_rois_to_fpn_levels(
             blobs[rois_blob_name][:, 1:5], lvl_min, lvl_max
         )
         # Add per FPN level roi blobs named like: <rois_blob_name>_fpn<lvl>
+        # 构建每个fpn层的rois
         fpn.add_multilevel_roi_blobs(
             blobs, rois_blob_name, blobs[rois_blob_name], target_lvls, lvl_min,
             lvl_max
