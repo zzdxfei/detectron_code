@@ -307,7 +307,7 @@ def _get_rpn_blobs(im_height, im_width, foas, all_anchors, gt_boxes):
         _bbox_outside_weights = bbox_outside_weights[start_idx:end_idx, :]
         start_idx = end_idx
 
-        # 和特诊图进行对应，直接裁剪进行使用
+        # 和特征图进行对应，直接裁剪进行使用
         # labels output with shape (1, A, height, width)
         _labels = _labels.reshape((1, H, W, A)).transpose(0, 3, 1, 2)
         # bbox_targets output with shape (1, 4 * A, height, width)

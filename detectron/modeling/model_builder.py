@@ -423,6 +423,31 @@ def add_training_inputs(model, roidb=None):
     orig_num_op = len(model.net._net.op)
     
     # 网络中输入的blob的名字
+    """
+    [u'data',
+     u'im_info',
+     u'roidb',
+     u'rpn_labels_int32_wide_fpn2',
+     u'rpn_bbox_targets_wide_fpn2',
+     u'rpn_bbox_inside_weights_wide_fpn2',
+     u'rpn_bbox_outside_weights_wide_fpn2',
+     u'rpn_labels_int32_wide_fpn3',
+     u'rpn_bbox_targets_wide_fpn3',
+     u'rpn_bbox_inside_weights_wide_fpn3',
+     u'rpn_bbox_outside_weights_wide_fpn3',
+     u'rpn_labels_int32_wide_fpn4',
+     u'rpn_bbox_targets_wide_fpn4',
+     u'rpn_bbox_inside_weights_wide_fpn4',
+     u'rpn_bbox_outside_weights_wide_fpn4',
+     u'rpn_labels_int32_wide_fpn5',
+     u'rpn_bbox_targets_wide_fpn5',
+     u'rpn_bbox_inside_weights_wide_fpn5',
+     u'rpn_bbox_outside_weights_wide_fpn5',
+     u'rpn_labels_int32_wide_fpn6',
+     u'rpn_bbox_targets_wide_fpn6',
+     u'rpn_bbox_inside_weights_wide_fpn6',
+     u'rpn_bbox_outside_weights_wide_fpn6']
+    """
     blob_names = roi_data_minibatch.get_minibatch_blob_names(is_training=True)
 
     # 对每个gpu创建input blob

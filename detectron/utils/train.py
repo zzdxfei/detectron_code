@@ -198,7 +198,7 @@ def add_model_training_inputs(model):
     logger = logging.getLogger(__name__)
     logger.info('Loading dataset: {}'.format(cfg.TRAIN.DATASETS))
 
-    # 构造roidb
+    # 构造roidb，计算了gt与gt的包围盒回归target
     roidb = combined_roidb_for_training(
         cfg.TRAIN.DATASETS, cfg.TRAIN.PROPOSAL_FILES
     )
