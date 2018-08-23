@@ -75,6 +75,7 @@ def im_detect_all(model, im, box_proposals, timers=None):
     scores, boxes, cls_boxes = box_results_with_nms_and_limit(scores, boxes)
     timers['misc_bbox'].toc()
 
+    # 获得校正后的box，在用这些box来进行mask预测
     if cfg.MODEL.MASK_ON and boxes.shape[0] > 0:
         timers['im_detect_mask'].tic()
         if cfg.TEST.MASK_AUG.ENABLED:
@@ -130,9 +131,12 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     Returns:
         scores (ndarray): R x K array of object class scores for K classes
             (K includes background as object category 0)
+        每个box的得分
         boxes (ndarray): R x 4*K array of predicted bounding boxes
+        预测的box
         im_scales (list): list of image scales used in the input blob (as
             returned by _get_blobs and for use with im_detect_mask, etc.)
+        图像的放缩比例
     """
     inputs, im_scale = _get_blobs(im, boxes, target_scale, target_max_size)
 
@@ -159,16 +163,20 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
 
     # Read out blobs
     if cfg.MODEL.FASTER_RCNN:
+        # 从rois块中提取数据
         rois = workspace.FetchBlob(core.ScopedName('rois'))
         # unscale back to raw image space
         boxes = rois[:, 1:5] / im_scale
 
     # Softmax class probabilities
+    # 提取rois的分类得分
     scores = workspace.FetchBlob(core.ScopedName('cls_prob')).squeeze()
     # In case there is 1 proposal
+    # 总共1000个
     scores = scores.reshape([-1, scores.shape[-1]])
 
     if cfg.TEST.BBOX_REG:
+        # 每个box的回归量 (1000, 36)
         # Apply bounding-box regression deltas
         box_deltas = workspace.FetchBlob(core.ScopedName('bbox_pred')).squeeze()
         # In case there is 1 proposal
@@ -176,6 +184,8 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
         if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG:
             # Remove predictions for bg class (compat with MSRA code)
             box_deltas = box_deltas[:, -4:]
+
+        # 获得最终的box
         pred_boxes = box_utils.bbox_transform(
             boxes, box_deltas, cfg.MODEL.BBOX_REG_WEIGHTS
         )
@@ -393,6 +403,7 @@ def im_detect_mask(model, im_scale, boxes):
 
     inputs = {'mask_rois': _get_rois_blob(boxes, im_scale)}
     # Add multi-level rois for FPN
+    # 构造输入数据
     if cfg.FPN.MULTILEVEL_ROIS:
         _add_multilevel_rois_for_test(inputs, 'mask_rois')
 
@@ -761,13 +772,17 @@ def box_results_with_nms_and_limit(scores, boxes):
     box at `boxes[i, j * 4:(j + 1) * 4]`.
     """
     num_classes = cfg.MODEL.NUM_CLASSES
+    # 存放最终的结果
     cls_boxes = [[] for _ in range(num_classes)]
     # Apply threshold on detection probabilities and apply NMS
     # Skip j = 0, because it's the background class
     for j in range(1, num_classes):
+        # 默认为0.05
         inds = np.where(scores[:, j] > cfg.TEST.SCORE_THRESH)[0]
         scores_j = scores[inds, j]
         boxes_j = boxes[inds, j * 4:(j + 1) * 4]
+
+        # (box, score)
         dets_j = np.hstack((boxes_j, scores_j[:, np.newaxis])).astype(
             np.float32, copy=False
         )
@@ -782,6 +797,8 @@ def box_results_with_nms_and_limit(scores, boxes):
         else:
             keep = box_utils.nms(dets_j, cfg.TEST.NMS)
             nms_dets = dets_j[keep, :]
+
+        # TODO(zzdxfei) ???
         # Refine the post-NMS boxes using bounding-box voting
         if cfg.TEST.BBOX_VOTE.ENABLED:
             nms_dets = box_utils.box_voting(
@@ -793,6 +810,7 @@ def box_results_with_nms_and_limit(scores, boxes):
         cls_boxes[j] = nms_dets
 
     # Limit to max_per_image detections **over all classes**
+    # 每张图片中目标的最大个数
     if cfg.TEST.DETECTIONS_PER_IM > 0:
         image_scores = np.hstack(
             [cls_boxes[j][:, -1] for j in range(1, num_classes)]
@@ -806,6 +824,7 @@ def box_results_with_nms_and_limit(scores, boxes):
     im_results = np.vstack([cls_boxes[j] for j in range(1, num_classes)])
     boxes = im_results[:, :-1]
     scores = im_results[:, -1]
+    # 这些信息可以使用的
     return scores, boxes, cls_boxes
 
 
