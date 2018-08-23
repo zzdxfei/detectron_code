@@ -545,7 +545,7 @@ def map_rois_to_fpn_levels(rois, k_min, k_max):
     on the heuristic in the FPN paper.
     """
     # Compute level ids
-    # s为包围盒的面积
+    # s为边长
     s = np.sqrt(box_utils.boxes_area(rois))
     s0 = cfg.FPN.ROI_CANONICAL_SCALE  # default: 224
     lvl0 = cfg.FPN.ROI_CANONICAL_LEVEL  # default: 4
