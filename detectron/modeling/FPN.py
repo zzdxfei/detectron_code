@@ -242,7 +242,8 @@ def add_fpn(model, fpn_level_info):
         spatial_scales.insert(0, spatial_scales[0] * 0.5)
 
     # Coarser FPN levels introduced for RetinaNet
-    # 用于RetinaNet, faster rcnn with fpn不执行
+    # 专用于RetinaNet, faster rcnn with fpn不执行
+    # 依次进行conv下采样获得2层
     if cfg.FPN.EXTRA_CONV_LEVELS and max_level > HIGHEST_BACKBONE_LVL:
         fpn_blob = fpn_level_info.blobs[0]
         dim_in = fpn_level_info.dims[0]

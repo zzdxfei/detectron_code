@@ -47,9 +47,11 @@ def get_retinanet_blob_names(is_training=True):
     retnet_cls_labels -> labels for the cls branch for each FPN level
                          Shape: N x A x H x W
 
+    用于包围盒回归
     retnet_roi_bbox_targets -> targets for the bbox regression branch
                                Shape: M x 4
 
+    和M个目标anchor对应, anchor_id为在本层anchor组成的数组中的位置
     retnet_roi_fg_bbox_locs -> for the bbox regression, since we are only
                                interested in regressing on fg bboxes which are
                                M in number and the output prediction of the network
@@ -79,11 +81,12 @@ def add_retinanet_blobs(blobs, im_scales, roidb, image_width, image_height):
     """Add RetinaNet blobs."""
     # RetinaNet is applied to many feature levels, as in the FPN paper
     k_max, k_min = cfg.FPN.RPN_MAX_LEVEL, cfg.FPN.RPN_MIN_LEVEL
-    scales_per_octave = cfg.RETINANET.SCALES_PER_OCTAVE
-    num_aspect_ratios = len(cfg.RETINANET.ASPECT_RATIOS)
+    scales_per_octave = cfg.RETINANET.SCALES_PER_OCTAVE  # 3
+    num_aspect_ratios = len(cfg.RETINANET.ASPECT_RATIOS)  # 3
     aspect_ratios = cfg.RETINANET.ASPECT_RATIOS
-    anchor_scale = cfg.RETINANET.ANCHOR_SCALE
+    anchor_scale = cfg.RETINANET.ANCHOR_SCALE  # 4
 
+    # 获得所有的anchors
     # get anchors from all levels for all scales/aspect ratios
     foas = []
     for lvl in range(k_min, k_max + 1):
@@ -99,6 +102,7 @@ def add_retinanet_blobs(blobs, im_scales, roidb, image_width, image_height):
     all_anchors = np.concatenate([f.field_of_anchors for f in foas])
 
     blobs['retnet_fg_num'], blobs['retnet_bg_num'] = 0.0, 0.0
+
     for im_i, entry in enumerate(roidb):
         scale = im_scales[im_i]
         im_height = np.round(entry['height'] * scale)
@@ -116,6 +120,7 @@ def add_retinanet_blobs(blobs, im_scales, roidb, image_width, image_height):
 
         retinanet_blobs, fg_num, bg_num = _get_retinanet_blobs(
             foas, all_anchors, gt_rois, gt_classes, image_width, image_height)
+
         for i, foa in enumerate(foas):
             for k, v in retinanet_blobs[i].items():
                 # the way it stacks is:
@@ -123,10 +128,12 @@ def add_retinanet_blobs(blobs, im_scales, roidb, image_width, image_height):
                 level = int(np.log2(foa.stride))
                 key = '{}_fpn{}'.format(k, level)
                 if k == 'retnet_roi_fg_bbox_locs':
+                    # 赋值图像序号
                     v[:, 0] = im_i
+
                     # loc_stride: 80 * 4 if cls_specific else 4
                     loc_stride = 4  # 4 coordinate corresponding to bbox prediction
-                    if cfg.RETINANET.CLASS_SPECIFIC_BBOX:
+                    if cfg.RETINANET.CLASS_SPECIFIC_BBOX:  # false
                         loc_stride *= (cfg.MODEL.NUM_CLASSES - 1)
                     anchor_ind = foa.octave * num_aspect_ratios + foa.aspect
                     # v[:, 1] is the class label [range 0-80] if we do
@@ -225,16 +232,21 @@ def _get_retinanet_blobs(
         gt_inds = anchor_to_gt_argmax[inds]
         labels[inds] = gt_classes[gt_inds]
 
+    # fg anchor索引
     fg_inds = np.where(labels >= 1)[0]
+    # bg anchor索引
     bg_inds = np.where(anchor_to_gt_max < cfg.RETINANET.NEGATIVE_OVERLAP)[0]
     labels[bg_inds] = 0
-    num_fg, num_bg = len(fg_inds), len(bg_inds)
 
+    # fg, bg的个数
+    num_fg, num_bg = len(fg_inds), len(bg_inds)
     bbox_targets = np.zeros((num_inside, 4), dtype=np.float32)
+    # 计算fg的包围盒回归量
     bbox_targets[fg_inds, :] = data_utils.compute_targets(
         anchors[fg_inds, :], gt_boxes[anchor_to_gt_argmax[fg_inds], :])
 
     # Map up to original set of anchors
+    # 还原回去
     labels = data_utils.unmap(labels, total_anchors, inds_inside, fill=-1)
     bbox_targets = data_utils.unmap(bbox_targets, total_anchors, inds_inside, fill=0)
 
@@ -245,6 +257,7 @@ def _get_retinanet_blobs(
         H = foa.field_size
         W = foa.field_size
         end_idx = start_idx + H * W
+        # 获得当前层的标签和回归量
         _labels = labels[start_idx:end_idx]
         _bbox_targets = bbox_targets[start_idx:end_idx, :]
         start_idx = end_idx
@@ -253,16 +266,20 @@ def _get_retinanet_blobs(
         _labels = _labels.reshape((1, 1, H, W))
         # bbox_targets output with shape (1, 4 * A, height, width)
         _bbox_targets = _bbox_targets.reshape((1, H, W, 4)).transpose(0, 3, 1, 2)
+
         stride = foa.stride
         w = int(im_width / stride)
         h = int(im_height / stride)
 
         # data for select_smooth_l1 loss
         num_classes = cfg.MODEL.NUM_CLASSES - 1
+        # 返回一个数组，包含4项，因为_labels维度为4
         inds_4d = np.where(_labels > 0)
+        # 正样本的个数
         M = len(inds_4d)
         _roi_bbox_targets = np.zeros((0, 4))
         _roi_fg_bbox_locs = np.zeros((0, 4))
+
         if M > 0:
             im_inds, y, x = inds_4d[0], inds_4d[2], inds_4d[3]
             _roi_bbox_targets = np.zeros((len(im_inds), 4))
