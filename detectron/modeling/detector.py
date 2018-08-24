@@ -304,11 +304,13 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 )
             # The pooled features from all levels are concatenated along the
             # batch dimension into a single 4D tensor.
+            # 将所有的pooled特征连接起来
             xform_shuffled, _ = self.net.Concat(
                 bl_out_list, [blob_out + '_shuffled', '_concat_' + blob_out],
                 axis=0
             )
             # Unshuffle to match rois from dataloader
+            # 进行重新排序，获得和rois相同的顺序
             restore_bl = blob_rois + '_idx_restore_int32'
             xform_out = self.net.BatchPermutation(
                 [xform_shuffled, restore_bl], blob_out

@@ -580,6 +580,7 @@ def add_multilevel_roi_blobs(
         rois_stacked = np.vstack(
             [rois_stacked, blobs[blob_prefix + '_fpn' + str(lvl)]]
         )
+    # rois中每个box在分配后连接出来的数组中的位置
     rois_idx_restore = np.argsort(rois_idx_order).astype(np.int32, copy=False)
     blobs[blob_prefix + '_idx_restore_int32'] = rois_idx_restore
     # Sanity check that restore order is correct
