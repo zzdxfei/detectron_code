@@ -153,6 +153,8 @@ def compute_bbox_regression_targets(entry):
     """
     Compute bounding-box regression targets for an image.
 
+    使用和gt的iou大于0.5的box进行回归训练
+
     对每个box计算box回归目标值，首先找出要预测的box，再找到gt，计算iou，
     获得回归量后在还原回去
 
@@ -162,7 +164,7 @@ def compute_bbox_regression_targets(entry):
     overlaps = entry['max_overlaps']
     labels = entry['max_classes']
 
-    # gt索引
+    # gt索引，rois对应的均为0
     gt_inds = np.where((entry['gt_classes'] > 0) & (entry['is_crowd'] == 0))[0]
 
     # Targets has format (class, tx, ty, tw, th)

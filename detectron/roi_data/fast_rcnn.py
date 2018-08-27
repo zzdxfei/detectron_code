@@ -199,6 +199,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
 
     # Scale rois and format as (batch_idx, x1, y1, x2, y2)
     # 构造选择的选择的rois
+    # 获得相对于原始图片大小的rois
     sampled_rois = sampled_boxes * im_scale
     repeated_batch_idx = batch_idx * blob_utils.ones((sampled_rois.shape[0], 1))
     sampled_rois = np.hstack((repeated_batch_idx, sampled_rois))

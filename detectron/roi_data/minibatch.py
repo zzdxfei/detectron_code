@@ -46,10 +46,14 @@ def get_minibatch_blob_names(is_training=True):
     """
     # data blob: holds a batch of N images, each with 3 channels
     blob_names = ['data']
+
+    #
     if cfg.RPN.RPN_ON:
         # RPN-only or end-to-end Faster R-CNN
+        # 添加rpn需要的blob名字
         blob_names += rpn_roi_data.get_rpn_blob_names(is_training=is_training)
     elif cfg.RETINANET.RETINANET_ON:
+        # 添加retinanet需要的blob名字
         blob_names += retinanet_roi_data.get_retinanet_blob_names(
             is_training=is_training
         )

@@ -103,7 +103,7 @@ class JsonDataset(object):
         # 列表，每一项为{u'file_name': u'107428.jpg', u'width': 2456, u'id': 107428, u'height': 2058}
         roidb = copy.deepcopy(self.COCO.loadImgs(image_ids))
 
-        # 对于每项，添加训练需要的信息
+        # prep，为每一项添加占位符
         for entry in roidb:
             self._prep_roidb_entry(entry)
 
@@ -141,6 +141,7 @@ class JsonDataset(object):
         entry['dataset'] = self
         # Make file_name an abs path
         # 添加图像的绝对路径
+        # 三部分构成了图片的路径
         im_path = os.path.join(
             self.image_directory, self.image_prefix + entry['file_name']
         )
@@ -205,13 +206,16 @@ class JsonDataset(object):
                 continue
             # Convert form (x1, y1, w, h) to (x1, y1, x2, y2)
             x1, y1, x2, y2 = box_utils.xywh_to_xyxy(obj['bbox'])
+
             # 标注信息超过图像也没有关系，在进行数据集转化时可以随意了
+            # zzdxfeimark : 1
             x1, y1, x2, y2 = box_utils.clip_xyxy_to_image(
                 x1, y1, x2, y2, height, width
             )
             # Require non-zero seg area and more than 1x1 box size
             # 如果标注的包围盒在图像外，则在训练时去除了这个包围盒
             if obj['area'] > 0 and x2 > x1 and y2 > y1:
+                # 添加了clean_bbox这一项
                 obj['clean_bbox'] = [x1, y1, x2, y2]
                 valid_objs.append(obj)
                 valid_segms.append(obj['segmentation'])
@@ -261,6 +265,7 @@ class JsonDataset(object):
                 gt_keypoints[ix, :, :] = self._get_gt_keypoints(obj)
                 if np.sum(gt_keypoints[ix, 2, :]) > 0:
                     im_has_visible_keypoints = True
+            # gt的类别项为1.0，其他为0.0
             if obj['iscrowd']:
                 # Set overlap to -1 for all classes for crowd objects
                 # so they will be excluded during training
@@ -374,6 +379,8 @@ def add_proposals(roidb, rois, scales, crowd_thresh):
     """Add proposal boxes (rois) to an roidb that has ground-truth annotations
     but no proposals. If the proposals are not at the original image scale,
     specify the scale factor that separate them in scales.
+
+    gt是相对于原始图片的，而由anchors获得的rois是相对于网络输入大小的
     """
     box_list = []
     for i in range(len(roidb)):
@@ -391,6 +398,7 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
     """Add proposal boxes to each roidb entry."""
     assert len(box_list) == len(roidb)
     for i, entry in enumerate(roidb):
+        # rois
         boxes = box_list[i]
         num_boxes = boxes.shape[0]
         # (num boxes, num class + 1)
@@ -427,11 +435,12 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
             maxes = proposal_to_gt_overlaps.max(axis=1)
             # Those boxes with non-zero overlap with gt boxes
             I = np.where(maxes > 0)[0]
+
             # Record max overlaps with the class of the appropriate gt box
-            # 进行iou赋值
+            # 对proposals box的gt_overlaps进行赋值
             gt_overlaps[I, gt_classes[argmaxes[I]]] = maxes[I]
 
-            # 每个box对应的gt的索引
+            # 每个box对应的gt的索引，默认值为-1
             box_to_gt_ind_map[I] = gt_inds[argmaxes[I]]
 
         # 添加新的box
@@ -441,7 +450,7 @@ def _merge_proposal_boxes_into_roidb(roidb, box_list):
             axis=0
         )
 
-        # 全部添加为0
+        # 全部添加为0，则大于0的就是gt
         entry['gt_classes'] = np.append(
             entry['gt_classes'],
             np.zeros((num_boxes), dtype=entry['gt_classes'].dtype)
