@@ -168,6 +168,7 @@ def compute_bbox_regression_targets(entry):
     gt_inds = np.where((entry['gt_classes'] > 0) & (entry['is_crowd'] == 0))[0]
 
     # Targets has format (class, tx, ty, tw, th)
+    # 类别为0，则计算回归loss时会忽略
     targets = np.zeros((rois.shape[0], 5), dtype=np.float32)
     if len(gt_inds) == 0:
         # Bail if the image has no ground-truth ROIs
