@@ -107,7 +107,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
     def GenerateProposals(self, blobs_in, blobs_out, anchors, spatial_scale):
         """Op for generating RPN porposals.
 
-        获得区域候选，区域候选相对于网络输入的大小
+        获得区域候选，区域候选相对于网络输入的大小，然后在收集重分配函数中计算这些rois
+        的box回归量，最后选择一部分进行fast rcnn的训练
 
         blobs_in:
           - 'rpn_cls_probs': 4D tensor of shape (N, A, H, W), where N is the
@@ -157,6 +158,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
           - (variable set of blobs): returns whatever blobs are required for
             training the model. It does this by querying the data loader for
             the list of blobs that are needed.
+
+        仅用于不使用FPN的Faster rcnn.
         """
         name = 'GenerateProposalLabelsOp:' + ','.join(
             [str(b) for b in blobs_in]
