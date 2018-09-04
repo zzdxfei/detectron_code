@@ -30,6 +30,7 @@ import detectron.utils.boxes as box_utils
 class GenerateProposalsOp(object):
     """Output object detection proposals by applying estimated bounding-box
     transformations to a set of regular boxes (called "anchors").
+    对anchors进行变换，输出区域获选框
     """
 
     def __init__(self, anchors, spatial_scale, train):
@@ -60,8 +61,9 @@ class GenerateProposalsOp(object):
         # input image (height, width, scale), in which scale is the scale factor
         # applied to the original dataset image to get the network input image
         im_info = inputs[2].data
+
         # 1. Generate proposals from bbox deltas and shifted anchors
-        height, width = scores.shape[-2:]
+        height, width = scores.shape[-2:]  # 特征图的尺寸
         # Enumerate all shifted positions on the (H, W) grid
         shift_x = np.arange(0, width) * self._feat_stride
         shift_y = np.arange(0, height) * self._feat_stride
@@ -82,14 +84,19 @@ class GenerateProposalsOp(object):
         K = shifts.shape[0]
         all_anchors = self._anchors[np.newaxis, :, :] + shifts[:, np.newaxis, :]
         all_anchors = all_anchors.reshape((K * A, 4))
+        """ 所有的anchors, 这里和gt毫无关系 """
 
+        # 一一对应
         rois = np.empty((0, 5), dtype=np.float32)
         roi_probs = np.empty((0, 1), dtype=np.float32)
+
+        # 对每张图片分别进行rois的生成, 每张图片的anchors完全相同
         for im_i in range(num_images):
             im_i_boxes, im_i_probs = self.proposals_for_one_image(
                 im_info[im_i, :], all_anchors, bbox_deltas[im_i, :, :, :],
                 scores[im_i, :, :, :]
             )
+            # 将每张图片的rois连接起来
             batch_inds = im_i * np.ones(
                 (im_i_boxes.shape[0], 1), dtype=np.float32
             )
@@ -107,17 +114,20 @@ class GenerateProposalsOp(object):
         self, im_info, all_anchors, bbox_deltas, scores
     ):
         # Get mode-dependent configuration
+        # 根据不同模式获取超参数
         cfg_key = 'TRAIN' if self._train else 'TEST'
         pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
         post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
-        nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
-        min_size = cfg[cfg_key].RPN_MIN_SIZE
+        nms_thresh = cfg[cfg_key].RPN_NMS_THRESH  # 0.7
+        min_size = cfg[cfg_key].RPN_MIN_SIZE  # 默认为0
+
         # Transpose and reshape predicted bbox transformations to get them
         # into the same order as the anchors:
         #   - bbox deltas will be (4 * A, H, W) format from conv output
         #   - transpose to (H, W, 4 * A)
         #   - reshape to (H * W * A, 4) where rows are ordered by (H, W, A)
         #     in slowest to fastest order to match the enumerated anchors
+        # 和all_anchors对应起来
         bbox_deltas = bbox_deltas.transpose((1, 2, 0)).reshape((-1, 4))
 
         # Same story for the scores:
@@ -127,6 +137,7 @@ class GenerateProposalsOp(object):
         #     to match the order of anchors and bbox_deltas
         scores = scores.transpose((1, 2, 0)).reshape((-1, 1))
 
+        """ 按得分从高到低获得rois """
         # 4. sort all (proposal, score) pairs by score from highest to lowest
         # 5. take top pre_nms_topN (e.g. 6000)
         if pre_nms_topN <= 0 or pre_nms_topN >= len(scores):
@@ -139,6 +150,8 @@ class GenerateProposalsOp(object):
             )[:pre_nms_topN]
             order = np.argsort(-scores[inds].squeeze())
             order = inds[order]
+
+        """ 取得得分最高的一部分 """
         bbox_deltas = bbox_deltas[order, :]
         all_anchors = all_anchors[order, :]
         scores = scores[order]
@@ -149,6 +162,7 @@ class GenerateProposalsOp(object):
 
         # 2. clip proposals to image (may result in proposals with zero area
         # that will be removed in the next step)
+        # 裁剪
         proposals = box_utils.clip_tiled_boxes(proposals, im_info[:2])
 
         # 3. remove predicted boxes with either height or width < min_size
@@ -159,6 +173,7 @@ class GenerateProposalsOp(object):
         # 6. apply loose nms (e.g. threshold = 0.7)
         # 7. take after_nms_topN (e.g. 300)
         # 8. return the top proposals (-> RoIs top)
+        # 执行NMS，在选择其中的一部分
         if nms_thresh > 0:
             keep = box_utils.nms(np.hstack((proposals, scores)), nms_thresh)
             if post_nms_topN > 0:
@@ -170,6 +185,7 @@ class GenerateProposalsOp(object):
 
 def _filter_boxes(boxes, min_size, im_info):
     """Only keep boxes with both sides >= min_size and center within the image.
+    rois的中心点要在图片内
     """
     # Scale min_size to match image scale
     min_size *= im_info[2]
