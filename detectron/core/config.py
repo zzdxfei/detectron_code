@@ -170,6 +170,7 @@ __C.TRAIN.RPN_NEGATIVE_OVERLAP = 0.3
 __C.TRAIN.RPN_FG_FRACTION = 0.5
 
 # Total number of RPN examples per image
+# 每张图片中,RPN训练使用256个样本, 其中一半是正样本，一半是负样本
 __C.TRAIN.RPN_BATCH_SIZE_PER_IM = 256
 
 # NMS threshold used on RPN proposals (used during end-to-end training with RPN)

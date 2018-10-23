@@ -206,6 +206,7 @@ def voc_eval(detpath,
                 if not R['det'][jmax]:
                     tp[d] = 1.
                     R['det'][jmax] = 1
+                # 得分低的再次命中，fp[d] = 1.0
                 else:
                     fp[d] = 1.
         else:
